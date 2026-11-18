@@ -48,7 +48,10 @@ GEMINI_API_KEY = get_gemini_key()
 def call_gemini(sys_p: str, user_p: str) -> str:
     if not GEMINI_API_KEY:
         return "⚠️ Gemini APIキーが設定されていません。StreamlitのSecretsに設定してください。"
+    
+    # 修正：有効な最新のモデル名を使用
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    
     headers = {"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY}
     payload = json.dumps({
         "systemInstruction": {"parts": [{"text": sys_p}]},
