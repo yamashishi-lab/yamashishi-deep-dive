@@ -2,10 +2,11 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import json, os, re, ssl, urllib.request, urllib.parse, hashlib, hmac, datetime
+import json, os, re, datetime
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 import html
+import google.generativeai as genai
 
 st.set_page_config(
     page_title="YAMASHISHI DEEP DIVE [ULTIMATE HACK]",
@@ -32,7 +33,7 @@ def inject_css():
 
 inject_css()
 
-# --- 2. APIキー・Gemini通信 ---
+# --- 2. APIキー・Gemini通信（公式SDK方式） ---
 def get_gemini_key():
     val = os.environ.get("GEMINI_API_KEY", "")
     if not val:
@@ -49,21 +50,17 @@ def call_gemini(sys_p: str, user_p: str) -> str:
     if not GEMINI_API_KEY:
         return "⚠️ Gemini APIキーが設定されていません。StreamlitのSecretsに設定してください。"
     
-    # 修正：有効な最新のモデル名を使用
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-    
-    headers = {"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY}
-    payload = json.dumps({
-        "systemInstruction": {"parts": [{"text": sys_p}]},
-        "contents": [{"role": "user", "parts": [{"text": user_p}]}]
-    }).encode("utf-8")
-
     try:
-        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=15.0, context=ssl.create_default_context()) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-            return "".join([p.get("text", "") for p in parts])
+        # 公式SDKで認証を設定
+        genai.configure(api_key=GEMINI_API_KEY)
+        
+        # 安定版のフラッシュモデルを指定し、システム指示を渡す
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=sys_p
+        )
+        response = model.generate_content(user_p)
+        return response.text
     except Exception as e:
         return f"API呼び出しエラー: {str(e)}"
 
@@ -72,8 +69,9 @@ def search_web_rumors_and_news(query: str) -> list:
     res = []
     try:
         url = f"https://news.google.com/rss/search?q={urllib.parse.quote(query)}&hl=ja&gl=JP&ceid=JP:ja"
+        import urllib.request
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=3.0, context=ssl.create_default_context()) as r:
+        with urllib.request.urlopen(req, timeout=3.0) as r:
             for it in ET.fromstring(r.read()).findall("./channel/item")[:8]:
                 t = (it.findtext("title") or "").strip()
                 d = (it.findtext("description") or "").strip()
@@ -83,7 +81,7 @@ def search_web_rumors_and_news(query: str) -> list:
         pass
     return res
 
-# --- 4. クエリパラメータおよび入力（安全な取得に修正） ---
+# --- 4. クエリパラメータおよび入力 ---
 qp_code = st.query_params.get("code", "6920")
 query_code = str(qp_code[0] if isinstance(qp_code, list) else qp_code).strip().upper()
 
