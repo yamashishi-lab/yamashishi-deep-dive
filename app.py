@@ -11,13 +11,13 @@ import datetime
 import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [QUANTUM HACK PRO MAX]",
+    page_title="YAMASHISHI DEEP DIVE [QUANTUM HACK PREVIEW EXPAND]",
     page_icon="🔥",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 1. スタイリング・デザイン（機関投資家向けハイエンド・ダークUI） ---
+# --- 1. スタイリング・デザイン ---
 def inject_css():
     css = """
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -96,11 +96,23 @@ def inject_css():
     .warning-box{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);padding:14px;border-radius:8px;margin-bottom:10px;font-size:13px;line-height:1.6;color:#fca5a5;}
     .quant-matrix{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);padding:14px;border-radius:8px;margin-bottom:10px;font-size:13px;line-height:1.7;color:#a7f3d0;}
     .pro-badge{background:rgba(245, 158, 11, 0.15);color:#f59e0b;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid rgba(245, 158, 11, 0.3);}
+    
+    /* アコーディオンヘッダーにチャートプレビューを埋め込むカスタムスタイル用 */
+    .chart-preview-banner {
+        background: #111827;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
 _boot = st.empty()
-_boot.caption("🔥 クオンツ・数理エンジン（PRO MAX）起動中...")
+_boot.caption("🔥 クオンツ・数理エンジン（Preview Boost）起動中...")
 if st.query_params.get("safe", "0") != "1":
     inject_css()
 
@@ -168,8 +180,8 @@ def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
 
 # --- 3. ヘッダー ＆ 入力コントロール ---
 st.markdown(
-    '<div class="glass-header"><div class="brand-title">YAMASHISHI DEEP DIVE <span style="color:#38bdf8;font-size:11px;font-weight:600;margin-left:6px;">[QUANTUM HACK PRO MAX - FULL INTEGRATED]</span></div>'
-    '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">1銘柄極限リサーチ ｜ ダークプール・インサイダー監査・AI自動裁定・ESG隠れ地雷フル実装エンジン</div></div>',
+    '<div class="glass-header"><div class="brand-title">YAMASHISHI DEEP DIVE <span style="color:#38bdf8;font-size:11px;font-weight:600;margin-left:6px;">[QUANTUM HACK PREVIEW EXPAND]</span></div>'
+    '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">1銘柄極限リサーチ ｜ チャートプレビュー＆拡大アコーディオン統合エンジン</div></div>',
     unsafe_allow_html=True
 )
 
@@ -188,7 +200,7 @@ target_style = col_in2.selectbox(
     index=STYLES.index(query_style) if query_style in STYLES else 0
 )
 col_in3.markdown("<br>", unsafe_allow_html=True)
-run_btn = col_in3.button("⚡ フルインテグレーション解析実行", use_container_width=True)
+run_btn = col_in3.button("⚡ 解析実行", use_container_width=True)
 
 target_code = target_code.strip().upper()
 if not target_code:
@@ -235,7 +247,7 @@ def load_deep_stock_data(code: str):
         }
         return df_5m, None, info, True
 
-with st.spinner(f"📡 【{fc}】のフルインテグレーション・データをスキャン中..."):
+with st.spinner(f"📡 【{fc}】のデータをスキャン中..."):
     df_5m, df_1d, info, is_fallback = load_deep_stock_data(fc)
     web_snippets = search_web_rumors_and_news(f"{fc} 株価 決算 ニュース")
 
@@ -266,12 +278,12 @@ st.markdown(f"""
       <div class="company-main-name">
         {html.escape(corp_name)} 
         <span class="company-code-pill">{html.escape(fc)}</span>
-        <span class="pro-badge">PRO MAX INTEGRATED</span>
+        <span class="pro-badge">PREVIEW EXPAND</span>
       </div>
       <div class="company-meta-info">
         <span>🏢 セグメント：<b>{html.escape(sector)}</b></span>
         <span>👤 CEO：<b>{html.escape(ceo_name)}</b></span>
-        <span>⚡ 総合クオンツスコア：<b>96.8/100 (極強気)</b></span>
+        <span>⚡ 総合スコア：<b>96.8/100 (強気)</b></span>
       </div>
     </div>
     <div class="price-display-box">
@@ -287,30 +299,88 @@ if is_fallback:
     st.info("ℹ️ 回線およびAPI制限を回避するため、数理モデリングに基づくシミュレーションモードで稼働中です。")
 
 # =========================================================================
-# --- 5. 縦型アコーディオン（スクロールレス構造 ＆ 魔改造機能フル統合） ---
+# --- 5. チャートプレビュー付きアコーディオン（閉じた状態で少し見える仕様） ---
 # =========================================================================
 
-# --- 5.1 モジュール 1: 未来予測チャート & 戦略（コンパクト表示 ＆ 拡大トグル） ---
-with st.expander("📈 【モジュール 1】未来予測チャート ＆ クオンツ戦略トレード", expanded=True):
-    col_ch1, col_ch2 = st.columns([4, 1])
-    with col_ch2:
-        expand_chart = st.checkbox("🔍 チャートを拡大表示する", value=False, key="exp_chart_toggle")
+now_str = datetime.datetime.now().strftime('%m/%d %H:%M')
+future_times = [now_str, '1時間後 (+1h)', '3時間後 (+3h)', '引け時点 (Close)', '翌日セッション初期']
+pred_trend_prices = [
+    round(curr_px, 2),
+    round(curr_px * 1.008, 2),
+    round(curr_px * 1.015, 2),
+    round(curr_px * 1.022, 2),
+    round(curr_px * 1.028, 2)
+]
+target_profit = round(curr_px * 1.028, 2)
+stop_loss = round(curr_px * 0.985, 2)
 
-    chart_height = 420 if expand_chart else 240
+# 1. 閉じた状態でも外側に「少しだけ見えるミニチャート・プレビュー」を配置
+preview_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { margin: 0; background-color: #111827; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; }
+        #preview-chart { width: 100%; height: 60px; }
+    </style>
+</head>
+<body>
+    <div id="preview-chart"></div>
+    <script>
+        var myChart = echarts.init(document.getElementById('preview-chart'), 'dark');
+        var option = {
+            backgroundColor: '#111827',
+            grid: { top: 4, bottom: 4, left: 20, right: 20 },
+            xAxis: { type: 'category', show: false, data: __TIMES_DATA__ },
+            yAxis: { type: 'value', show: false, scale: true },
+            series: [{
+                type: 'line',
+                smooth: 0.3,
+                symbol: 'none',
+                lineStyle: { color: '#38bdf8', width: 2 },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(56, 189, 248, 0.3)' },
+                        { offset: 1, color: 'rgba(56, 189, 248, 0.0)' }
+                    ])
+                },
+                data: __PRED_DATA__
+            }]
+        };
+        myChart.setOption(option);
+    </script>
+</body>
+</html>
+"""
 
-    now_str = datetime.datetime.now().strftime('%m/%d %H:%M')
-    future_times = [now_str, '1時間後 (+1h)', '3時間後 (+3h)', '引け時点 (Close)', '翌日セッション初期']
-    pred_trend_prices = [
-        round(curr_px, 2),
-        round(curr_px * 1.008, 2),
-        round(curr_px * 1.015, 2),
-        round(curr_px * 1.022, 2),
-        round(curr_px * 1.028, 2)
-    ]
-    target_profit = round(curr_px * 1.028, 2)
-    stop_loss = round(curr_px * 0.985, 2)
+preview_html = (
+    preview_template
+    .replace('__TIMES_DATA__', json.dumps(future_times))
+    .replace('__PRED_DATA__', json.dumps(pred_trend_prices))
+)
 
-    echarts_template = """
+# アコーディオンの外側に「少しだけ見えるチャートプレビュー」を常時表示
+st.markdown("""
+<div class="chart-preview-banner">
+  <div>
+    <span style="font-size:12px;font-weight:700;color:#38bdf8;">📈 未来予測チャート プレビュー</span>
+    <span style="font-size:11px;color:#94a3b8;margin-left:8px;">（※ 下部のアコーディオンをタップして大きく展開できます）</span>
+  </div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#10b981;font-weight:600;">
+    予測モメンタム: 強気 (+2.8%)
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ミニチャートプレビュー（高さ65pxで少しだけ見える状態）
+components.html(preview_html, height=65)
+
+
+# --- 2. タップ（展開）したら大きく表示されるアコーディオン ---
+with st.expander("🔍 【タップして拡大表示】YAMASHISHI AI未来予測チャート ＆ クオンツ戦略トレード", expanded=False):
+    full_chart_template = """
     <!DOCTYPE html>
     <html>
     <head>
@@ -319,7 +389,7 @@ with st.expander("📈 【モジュール 1】未来予測チャート ＆ ク�
         <style>
             body { margin: 0; background-color: #0b0f19; font-family: 'Plus Jakarta Sans', sans-serif; }
             #chart-container {
-                width: 100%; height: __HEIGHT__px; border-radius: 8px; overflow: hidden;
+                width: 100%; height: 380px; border-radius: 8px; overflow: hidden;
                 border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             }
         </style>
@@ -334,10 +404,10 @@ with st.expander("📈 【モジュール 1】未来予測チャート ＆ ク�
                 tooltip: { trigger: 'axis' },
                 legend: {
                     data: ['YAMASHISHI AI予測軌道'],
-                    top: 6,
+                    top: 8,
                     textStyle: { color: '#94a3b8', fontSize: 11, fontWeight: '600' }
                 },
-                grid: { top: 35, bottom: 25, left: 55, right: 30 },
+                grid: { top: 40, bottom: 30, left: 60, right: 35 },
                 xAxis: {
                     type: 'category',
                     boundaryGap: false,
@@ -357,11 +427,11 @@ with st.expander("📈 【モジュール 1】未来予測チャート ＆ ク�
                     type: 'line',
                     smooth: 0.3,
                     symbol: 'circle',
-                    symbolSize: 7,
-                    lineStyle: { color: '#38bdf8', width: 2.5 },
+                    symbolSize: 8,
+                    lineStyle: { color: '#38bdf8', width: 3 },
                     areaStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: 'rgba(56, 189, 248, 0.25)' },
+                            { offset: 0, color: 'rgba(56, 189, 248, 0.3)' },
                             { offset: 1, color: 'rgba(56, 189, 248, 0.0)' }
                         ])
                     },
@@ -374,12 +444,12 @@ with st.expander("📈 【モジュール 1】未来予測チャート ＆ ク�
                 data: [
                     {
                         yAxis: __TARGET_PROFIT__,
-                        label: { formatter: '🎯 利確: '+ __TARGET_PROFIT__, position: 'end', color: '#10b981', fontWeight: 'bold', fontSize: 10 },
+                        label: { formatter: '🎯 利確目標: '+ __TARGET_PROFIT__ +' (+2.8%)', position: 'end', color: '#10b981', fontWeight: 'bold', fontSize: 10 },
                         lineStyle: { color: '#10b981', type: 'solid', width: 1.5 }
                     },
                     {
                         yAxis: __STOP_LOSS__,
-                        label: { formatter: '🛡️ 損切り: '+ __STOP_LOSS__, position: 'end', color: '#ef4444', fontWeight: 'bold', fontSize: 10 },
+                        label: { formatter: '🛡️ 損切り: '+ __STOP_LOSS__ +' (-1.5%)', position: 'end', color: '#ef4444', fontWeight: 'bold', fontSize: 10 },
                         lineStyle: { color: '#ef4444', type: 'dashed', width: 1.5 }
                     }
                 ]
@@ -391,26 +461,28 @@ with st.expander("📈 【モジュール 1】未来予測チャート ＆ ク�
     </html>
     """
 
-    echarts_code = (
-        echarts_template
-        .replace('__HEIGHT__', str(chart_height))
+    full_chart_code = (
+        full_chart_template
         .replace('__TIMES_DATA__', json.dumps(future_times))
         .replace('__PRED_DATA__', json.dumps(pred_trend_prices))
         .replace('__TARGET_PROFIT__', str(target_profit))
         .replace('__STOP_LOSS__', str(stop_loss))
     )
 
-    components.html(echarts_code, height=chart_height + 15)
+    # タップして開いたときは大迫力で大きく表示
+    components.html(full_chart_code, height=395)
 
     st.markdown(f"""
     <div class="dark-box" style="margin-top:8px;">
-      <b>💡 クオンツ戦略トレードガイド:</b> 
-      利確目標: <b>{target_profit:,.2f} (+2.8%)</b> ｜ 損切りライン: <b>{stop_loss:,.2f} (-1.5%)</b>
+      <b>💡 クオンツ戦略トレードガイド:</b><br>
+      ・<b>🎯 利確目標（緑線）：</b> <b>{target_profit:,.2f} (+2.8%)</b> ｜ AI予測モメンタム到達地点での利食い。<br>
+      ・<b>🛡️ 損切りライン（赤線）：</b> <b>{stop_loss:,.2f} (-1.5%)</b> ｜ ボラティリティ下限での機械的ロスカット。
     </div>
     """, unsafe_allow_html=True)
 
 
-# --- 5.2 モジュール 2: ダークプール ＆ ブロックトレード監視 ---
+# --- 5. その他の魔改造・機関投資家向けモジュール群（完全統合） ---
+
 with st.expander("🏛️ 【モジュール 2】ダークプール・ブロックトレード監視レーダー", expanded=False):
     col_dp1, col_dp2 = st.columns(2)
     with col_dp1:
@@ -434,8 +506,6 @@ with st.expander("🏛️ 【モジュール 2】ダークプール・ブロッ�
         </div>
         """, unsafe_allow_html=True)
 
-
-# --- 5.3 モジュール 3: インサイダー・Form 4 自動監査 ---
 with st.expander("🕵️ 【モジュール 3】インサイダー・Form 4 自動監査トラッカー", expanded=False):
     col_ins1, col_ins2 = st.columns(2)
     with col_ins1:
@@ -457,8 +527,6 @@ with st.expander("🕵️ 【モジュール 3】インサイダー・Form 4 自
         </div>
         """, unsafe_allow_html=True)
 
-
-# --- 5.4 モジュール 4: AI自動裁定取引（アービトラージ）シミュレーター ---
 with st.expander("⚖️ 【モジュール 4】AI自動裁定取引（アービトラージ）シミュレーター", expanded=False):
     arb_diff = round((curr_px * 0.0035), 2)
     st.markdown(f"""
@@ -470,8 +538,6 @@ with st.expander("⚖️ 【モジュール 4】AI自動裁定取引（アービ
     </div>
     """, unsafe_allow_html=True)
 
-
-# --- 5.5 モジュール 5: ESG・ガバナンス「隠れ地雷」スコアカード ---
 with st.expander("🛡️ 【モジュール 5】ESG・ガバナンス「隠れ地雷」スコアカード", expanded=False):
     col_esg1, col_esg2 = st.columns(2)
     with col_esg1:
@@ -492,8 +558,6 @@ with st.expander("🛡️ 【モジュール 5】ESG・ガバナンス「隠れ�
         </div>
         """, unsafe_allow_html=True)
 
-
-# --- 5.6 モジュール 6: マルチエージェント「強気vs弱気」ディベートパネル ---
 with st.expander("💬 【モジュール 6】AIマルチエージェント「強気 vs 弱気」ディベートパネル", expanded=False):
     st.markdown(f"""
     <div class="dark-box">
@@ -512,8 +576,6 @@ with st.expander("💬 【モジュール 6】AIマルチエージェント「�
     </div>
     """, unsafe_allow_html=True)
 
-
-# --- 5.7 モジュール 7: 役員不祥事・ガバナンス検知 ---
 with st.expander("🚨 【モジュール 7】役員不祥事・ガバナンス監査スキャン", expanded=False):
     with st.spinner(f"🔍 {corp_name} のガバナンスリスクをスキャン中..."):
         recon_data = deep_recon_intelligence(corp_name, ceo_name)
@@ -530,8 +592,6 @@ with st.expander("🚨 【モジュール 7】役員不祥事・ガバナンス�
             st.markdown(f"- {item}")
         st.markdown("</div>", unsafe_allow_html=True)
 
-
-# --- 5.8 モジュール 8: 会社概要・決算指標 ---
 with st.expander("📋 【モジュール 8】企業概要 ＆ ファンダメンタルズ決算指標", expanded=False):
     st.markdown(f"""
     <div class="dark-box">
@@ -557,8 +617,6 @@ with st.expander("📋 【モジュール 8】企業概要 ＆ ファンダメ�
         </div>
         """, unsafe_allow_html=True)
 
-
-# --- 5.9 モジュール 9: ニュース・生データ速報 ---
 with st.expander("🌐 【モジュール 9】WEBマルチサーチ・生データ速報", expanded=False):
     web_str_joined = "<br>".join(web_snippets) if web_snippets else "特段の新規ヘッドライン・噂なし"
     st.markdown(f'<div class="dark-box">{web_str_joined}</div>', unsafe_allow_html=True)
