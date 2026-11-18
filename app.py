@@ -10,7 +10,7 @@ import altair as alt
 import datetime
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [ROBUST HACK]",
+    page_title="YAMASHISHI DEEP DIVE [ULTRA SMOOTH CHART]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -70,8 +70,8 @@ qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
 st.markdown(
-    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ROBUST HACK]</div>'
-    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ yfinance + 自動フォールバック対応版</div></div>',
+    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ULTRA SMOOTH CHART]</div>'
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ クロスヘア・なめらかズーム対応 高性能チャート</div></div>',
     unsafe_allow_html=True
 )
 
@@ -107,16 +107,15 @@ def load_deep_stock_data(code: str):
             
         return df_5m, df_1d, info, False
     except Exception:
-        # クラウド環境等でyfinanceがブロックされた場合のフォールバック（仮想データ生成）
         np.random.seed(hash(code) % 2**32)
-        dates = pd.date_range(end=datetime.datetime.now(), periods=100, freq="5min")
+        dates = pd.date_range(end=datetime.datetime.now(), periods=120, freq="5min")
         base_price = 18500.0 if "6920" in code else 3000.0
-        walk = np.random.normal(0, 60, size=100).cumsum()
+        walk = np.random.normal(0, 50, size=120).cumsum()
         prices = base_price + walk
         df_5m = pd.DataFrame({"Close": prices}, index=dates)
         info = {
             "longName": f"銘柄データ ({code})",
-            "sector": "半導体・製造装置 (※API制限回避フォールバック表示)"
+            "sector": "半導体・製造装置 (フォールバックデータ)"
         }
         return df_5m, None, info, True
 
@@ -151,33 +150,35 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 if is_fallback:
-    st.info("ℹ️ 現在のホスティング環境制限によりYahoo Financeからの直接取得がブロックされたため、モックシミュレーションデータでチャートを表示しています。")
+    st.info("ℹ️ 現在のホスティング環境制限によりYahoo Financeからの直接取得が制限されたため、スムーズなモックシミュレーションデータでチャートを表示しています。")
 
-# --- 5. 美しいカスタムインタラクティブチャート (Altair) ---
-st.markdown("#### 📈 5分足プライスアクション・ハイパフォーマンスチャート")
+# --- 5. ヌルヌル動くハイパフォーマンス・モダンチャート (Altair + クロスヘア＆なめらかズーム) ---
+st.markdown("#### 📈 プロフェッショナル・インタラクティブ・チャート")
 
 df_chart = df_5m.reset_index()
-time_col = "Datetime" if "Datetime" in df_chart.columns else (df_chart.columns[0])
+time_col = "Datetime" if "Datetime" in df_chart.columns else df_chart.columns[0]
 
-base_chart = alt.Chart(df_chart).mark_line(
+# 選択・ズーム用のセレクター定義（マウスドラッグ＆ホイールでヌルヌル動く）
+zoom_selector = alt.selection_interval(encodings=['x', 'y'], bind='scales')
+nearest_selector = alt.selection_point(on='mouseover', nearest=True, fields=[time_col], empty=False)
+
+# ベースラインチャート
+line_chart = alt.Chart(df_chart).mark_line(
     color="#f43f5e",
-    strokeWidth=2.2
+    strokeWidth=2.5
 ).encode(
     x=alt.X(f'{time_col}:T', title='日時', axis=alt.Axis(grid=False, labelColor="#94a3b8", titleColor="#94a3b8")),
-    y=alt.Y('Close:Q', title='株価 (円)', scale=alt.Scale(zero=False), axis=alt.Axis(grid=True, gridColor="#1e293b", labelColor="#94a3b8", titleColor="#94a3b8")),
-    tooltip=[
-        alt.Tooltip(f'{time_col}:T', title='日時'),
-        alt.Tooltip('Close:Q', title='終値', format=',.1f')
-    ]
+    y=alt.Y('Close:Q', title='株価 (円)', scale=alt.Scale(zero=False), axis=alt.Axis(grid=True, gridColor="#1e293b", labelColor="#94a3b8", titleColor="#94a3b8"))
 )
 
+# グラデーション背景エリア
 area_chart = alt.Chart(df_chart).mark_area(
     line=False,
     color=alt.Gradient(
         gradient='linear',
         stops=[
-            alt.GradientStop(color='rgba(244, 63, 94, 0.35)', offset=0),
-            alt.GradientStop(color='rgba(244, 63, 94, 0.0)', offset=1)
+            alt.GradientStop(color='rgba(244, 63, 94, 0.4)', offset=0),
+            alt.GradientStop(color='rgba(244, 63, 94, 0.0)', offset=1]
         ],
         x1=1, x2=1, y1=1, y2=0
     )
@@ -186,16 +187,70 @@ area_chart = alt.Chart(df_chart).mark_area(
     y='Close:Q'
 )
 
-final_chart = (area_chart + base_chart).interactive().properties(
-    height=320,
+# ホバー時の十字カーソル（クロスヘア）とポイント表示用のレイヤー
+selectors_layer = alt.Chart(df_chart).mark_point().encode(
+    x=f'{time_col}:T',
+    opacity=alt.value(0)
+).add_params(
+    nearest_selector
+)
+
+# ホバー時に追従する垂直ライン（クロスヘア）
+rule_layer = alt.Chart(df_chart).mark_rule(
+    color="#38bdf8",
+    strokeWidth=1,
+    strokeDash=[4, 4]
+).encode(
+    x=f'{time_col}:T'
+).transform_filter(
+    nearest_selector
+)
+
+# ホバー時に浮き出る価格・日時インジケータポイント
+points_layer = alt.Chart(df_chart).mark_circle(
+    size=70,
+    color="#38bdf8",
+    stroke="#f8fafc",
+    strokeWidth=2
+).encode(
+    x=f'{time_col}:T',
+    y='Close:Q'
+).transform_filter(
+    nearest_selector
+)
+
+# ホバー時の詳細ツールチップテキスト表示
+text_layer = alt.Chart(df_chart).mark_text(
+    align='left',
+    dx=10,
+    dy=-15,
+    fontSize=13,
+    fontWeight=700,
+    color='#f8fafc'
+).encode(
+    x=f'{time_col}:T',
+    y='Close:Q',
+    text=alt.Text('Close:Q', format=',.1f')
+).transform_filter(
+    nearest_selector
+)
+
+# すべてのレイヤーを合成し、ズーム＆パン（ドラッグ・スクロール）を有効化
+interactive_chart = alt.layer(
+    area_chart, line_chart, selectors_layer, rule_layer, points_layer, text_layer
+).properties(
+    height=360,
     background='#03050a'
+).add_params(
+    zoom_selector
 ).configure_view(
     stroke=None
 ).configure_axis(
     domainColor='#334155'
 )
 
-st.altair_chart(final_chart, use_container_width=True)
+st.altair_chart(interactive_chart, use_container_width=True)
+st.caption("💡 ヒント: チャート上でマウスホイールを回すと拡大・縮小、ドラッグすると左右へスムーズに移動（パン）できます。ポイントにカーソルを合わせると詳細な株価が追従します。")
 
 # --- 6. WEBサーチ結果の表示 ---
 st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
