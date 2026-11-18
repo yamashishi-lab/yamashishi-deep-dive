@@ -38,7 +38,8 @@ def inject_css():
 
 _boot = st.empty()
 _boot.caption("⏳ 起動中...")
-if st.query_params.get("safe", "0") != "1": inject_css()
+if st.query_params.get("safe", "0") != "1":
+    inject_css()
 
 # テキスト→安全なHTML（**太字**と改行に対応）
 def to_html(text: str) -> str:
@@ -59,12 +60,13 @@ def get_gemini_key():
 
 GEMINI_API_KEY = get_gemini_key()
 
+# 2026年11月時点で有効なモデル優先順
 FALLBACK_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash",
     "gemini-2.5-flash",
     "gemini-flash-latest",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
 ]
 
 @st.cache_data(ttl=3600)
@@ -94,27 +96,48 @@ def get_available_models(api_key: str) -> list:
 
 def call_gemini(sys_p: str, user_p: str) -> str:
     if not GEMINI_API_KEY:
-        return "⚠️ Gemini APIキーが設定されていません。StreamlitのSecretsに設定してください。"
+        return "⚠️ Gemini APIキーが設定されていません。StreamlitのSecretsに GEMINI_API_KEY を設定してください。"
+    
     try:
-        # RESTで接続（gRPCだとStreamlit Cloudで固まることがある）
+        # RESTを強制（gRPC接続エラー回避に有効）
         genai.configure(api_key=GEMINI_API_KEY, transport="rest")
-        models = get_available_models(GEMINI_API_KEY)[:4]
+        
+        models = get_available_models(GEMINI_API_KEY)[:5]
+        if not models:
+            models = FALLBACK_MODELS
+            
         errors = []
         t0 = time.time()
+        
         for m_name in models:
-            if time.time() - t0 > 70:
-                errors.append("タイムアウト（合計70秒超過）")
+            if time.time() - t0 > 90:
+                errors.append("タイムアウト（合計90秒超過）")
                 break
             try:
-                model = genai.GenerativeModel(model_name=m_name, system_instruction=sys_p)
-                response = model.generate_content(user_p, request_options={"timeout": 30})
-                if response and response.text:
+                model = genai.GenerativeModel(
+                    model_name=m_name,
+                    system_instruction=sys_p
+                )
+                response = model.generate_content(
+                    user_p,
+                    request_options={"timeout": 45}
+                )
+                if response and hasattr(response, "text") and response.text:
                     return response.text
+                else:
+                    errors.append(f"{m_name}: 空のレスポンス")
             except Exception as e:
-                errors.append(f"{m_name}: {str(e)[:80]}")
+                err_msg = str(e)[:120]
+                errors.append(f"{m_name}: {err_msg}")
+                # レート制限系は少し待って次へ
+                if "429" in err_msg or "quota" in err_msg.lower() or "rate" in err_msg.lower():
+                    time.sleep(2)
+                continue
+                
         return "API呼び出しエラー:\n" + "\n".join(errors)
+        
     except Exception as e:
-        return f"API初期化エラー: {e}"
+        return f"API初期化エラー: {type(e).__name__}: {str(e)[:200]}"
 
 # --- 3. WEBサーチ＆ニュース収集関数 ---
 def search_web_rumors_and_news(query: str) -> list:
