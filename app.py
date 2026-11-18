@@ -6,12 +6,10 @@ import os, re, time
 import urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 import html
-import json
 import datetime
-import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [TRADINGVIEW HACK]",
+    page_title="YAMASHISHI DEEP DIVE [STABLE CHART]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -71,8 +69,8 @@ qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
 st.markdown(
-    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [TRADINGVIEW HACK]</div>'
-    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ TradingViewエンジン搭載・超滑らかチャート</div></div>',
+    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [STABLE CHART]</div>'
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ 高速ネイティブ描画チャート</div></div>',
     unsafe_allow_html=True
 )
 
@@ -109,9 +107,9 @@ def load_deep_stock_data(code: str):
         return df_5m, df_1d, info, False
     except Exception:
         np.random.seed(hash(code) % 2**32)
-        dates = pd.date_range(end=datetime.datetime.now(), periods=150, freq="5min")
+        dates = pd.date_range(end=datetime.datetime.now(), periods=120, freq="5min")
         base_price = 18500.0 if "6920" in code else 3000.0
-        walk = np.random.normal(0, 45, size=150).cumsum()
+        walk = np.random.normal(0, 40, size=120).cumsum()
         prices = base_price + walk
         df_5m = pd.DataFrame({"Close": prices}, index=dates)
         info = {
@@ -153,108 +151,16 @@ st.markdown(f"""
 if is_fallback:
     st.info("ℹ️ 現在のホスティング環境制限によりYahoo Financeからの直接取得が制限されたため、スムーズなモックシミュレーションデータでチャートを表示しています。")
 
-# --- 5. TradingView Lightweight Charts（通常の文字列テンプレートを使用し、括弧エラーを完全に防止） ---
-st.markdown("#### 📈 プロフェッショナル・インタラクティブ・チャート (TradingView Engine)")
+# --- 5. Streamlit標準・高速ネイティブインタラクティブチャート ---
+st.markdown("#### 📈 プロフェッショナル・プライスアクション・チャート")
 
-chart_data = []
-for idx, row in df_5m.iterrows():
-    try:
-        ts = int(idx.timestamp())
-    except Exception:
-        ts = int(pd.Timestamp(idx).timestamp())
-    chart_data.append({"time": ts, "value": float(row["Close"])})
+# Streamlit標準機能を用いた確実で美しいラインチャート（データフレームを直接渡して高速描画）
+chart_df = pd.DataFrame({
+    "株価 (円)": df_5m["Close"]
+})
 
-chart_json_str = json.dumps(chart_data)
-
-# fではなく通常のトリプルクォーテーション文字列にする
-tv_html_template = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-    <style>
-        body {
-            margin: 0;
-            background-color: #03050a;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-        #chart-container {
-            width: 100%;
-            height: 380px;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-        }
-    </style>
-</head>
-<body>
-    <div id="chart-container"></div>
-    <script>
-        const chartContainer = document.getElementById('chart-container');
-        
-        const chart = LightweightCharts.createChart(chartContainer, {
-            width: chartContainer.clientWidth,
-            height: 380,
-            layout: {
-                background: { type: 'solid', color: '#070b14' },
-                textColor: '#94a3b8',
-            },
-            grid: {
-                vertLines: { color: 'rgba(30, 41, 59, 0.5)' },
-                horzLines: { color: 'rgba(30, 41, 59, 0.5)' },
-            },
-            crosshair: {
-                mode: LightweightCharts.CrosshairMode.Normal,
-                vertLine: {
-                    color: '#38bdf8',
-                    width: 1,
-                    style: LightweightCharts.LineStyle.Dashed,
-                    labelBackgroundColor: '#0284c7',
-                },
-                horzLine: {
-                    color: '#38bdf8',
-                    width: 1,
-                    style: LightweightCharts.LineStyle.Dashed,
-                    labelBackgroundColor: '#0284c7',
-                },
-            },
-            rightPriceScale: {
-                borderColor: 'rgba(51, 65, 85, 0.6)',
-            },
-            timeScale: {
-                borderColor: 'rgba(51, 65, 85, 0.6)',
-                timeVisible: true,
-                secondsVisible: false,
-            },
-        });
-
-        const areaSeries = chart.addAreaSeries({
-            topColor: 'rgba(244, 63, 94, 0.45)',
-            bottomColor: 'rgba(244, 63, 94, 0.02)',
-            lineColor: '#f43f5e',
-            lineWidth: 2.5,
-        });
-
-        const rawData = __CHART_DATA_PLACEHOLDER__;
-        areaSeries.setData(rawData);
-
-        chart.timeScale().fitContent();
-
-        window.addEventListener('resize', () => {
-            chart.resize(chartContainer.clientWidth, 380);
-        });
-    </script>
-</body>
-</html>
-"""
-
-# プレースホルダーを実際の株価データJSONに置換する
-tv_html_code = tv_html_template.replace('__CHART_DATA_PLACEHOLDER__', chart_json_str)
-
-components.html(tv_html_code, height=400)
-st.caption("💡 ヌルヌル操作ヒント: マウスドラッグでチャートの左右移動、マウスホイールで拡大・縮小が完全に滑らかに行えます。")
+st.line_chart(chart_df, height=350, color="#f43f5e")
+st.caption("💡 ヒント: チャートの右上にあるアイコンからフルスクリーン表示やデータのダウンロード、拡大が可能です。")
 
 # --- 6. WEBサーチ結果の表示 ---
 st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
