@@ -41,13 +41,12 @@ _boot.caption("⏳ 起動中...")
 if st.query_params.get("safe", "0") != "1":
     inject_css()
 
-# テキスト→安全なHTML（**太字**と改行に対応）
 def to_html(text: str) -> str:
     t = html.escape(str(text))
     t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
     return t.replace("\n", "<br>")
 
-# --- 2. APIキー・Gemini通信（利用可能モデルを自動取得） ---
+# --- 2. APIキー・Gemini通信 ---
 def get_gemini_key():
     val = os.environ.get("GEMINI_API_KEY", "")
     if not val:
@@ -60,7 +59,7 @@ def get_gemini_key():
 
 GEMINI_API_KEY = get_gemini_key()
 
-# 2026年11月時点で有効なモデル優先順
+# 安定して動きやすいモデル優先順（2026年11月時点）
 FALLBACK_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.5-flash-lite",
@@ -69,77 +68,45 @@ FALLBACK_MODELS = [
     "gemini-flash-latest",
 ]
 
-@st.cache_data(ttl=3600)
-def get_available_models(api_key: str) -> list:
-    try:
-        genai.configure(api_key=api_key, transport="rest")
-        names = []
-        for m in genai.list_models(request_options={"timeout": 10}):
-            if "generateContent" in m.supported_generation_methods:
-                names.append(m.name.replace("models/", ""))
-
-        def score(n):
-            s = 0
-            if "flash" in n: s -= 10
-            if "lite" in n: s += 3
-            if "pro" in n: s -= 5
-            if "gemma" in n: s += 30
-            if any(x in n for x in ["image", "tts", "live", "exp", "preview",
-                                    "thinking", "embedding", "aqa", "vision", "audio"]):
-                s += 20
-            return s
-
-        result = sorted(names, key=score)
-        return result if result else FALLBACK_MODELS
-    except Exception:
-        return FALLBACK_MODELS
-
-def call_gemini(sys_p: str, user_p: str) -> str:
+def call_gemini(sys_p: str, user_p: str, max_retries: int = 4) -> str:
+    """高速・堅牢版。list_modelsを呼ばず、直接フォールバックモデルを順に試す"""
     if not GEMINI_API_KEY:
         return "⚠️ Gemini APIキーが設定されていません。StreamlitのSecretsに GEMINI_API_KEY を設定してください。"
-    
-    try:
-        # RESTを強制（gRPC接続エラー回避に有効）
-        genai.configure(api_key=GEMINI_API_KEY, transport="rest")
-        
-        models = get_available_models(GEMINI_API_KEY)[:5]
-        if not models:
-            models = FALLBACK_MODELS
-            
-        errors = []
-        t0 = time.time()
-        
-        for m_name in models:
-            if time.time() - t0 > 90:
-                errors.append("タイムアウト（合計90秒超過）")
-                break
-            try:
-                model = genai.GenerativeModel(
-                    model_name=m_name,
-                    system_instruction=sys_p
-                )
-                response = model.generate_content(
-                    user_p,
-                    request_options={"timeout": 45}
-                )
-                if response and hasattr(response, "text") and response.text:
-                    return response.text
-                else:
-                    errors.append(f"{m_name}: 空のレスポンス")
-            except Exception as e:
-                err_msg = str(e)[:120]
-                errors.append(f"{m_name}: {err_msg}")
-                # レート制限系は少し待って次へ
-                if "429" in err_msg or "quota" in err_msg.lower() or "rate" in err_msg.lower():
-                    time.sleep(2)
-                continue
-                
-        return "API呼び出しエラー:\n" + "\n".join(errors)
-        
-    except Exception as e:
-        return f"API初期化エラー: {type(e).__name__}: {str(e)[:200]}"
 
-# --- 3. WEBサーチ＆ニュース収集関数 ---
+    try:
+        genai.configure(api_key=GEMINI_API_KEY, transport="rest")
+    except Exception as e:
+        return f"API初期化エラー: {e}"
+
+    errors = []
+    models_to_try = FALLBACK_MODELS[:max_retries]
+
+    for i, m_name in enumerate(models_to_try):
+        try:
+            model = genai.GenerativeModel(
+                model_name=m_name,
+                system_instruction=sys_p
+            )
+            # タイムアウトを短めに設定（固まるのを防ぐ）
+            response = model.generate_content(
+                user_p,
+                request_options={"timeout": 25}  # 25秒で打ち切り
+            )
+            if response and hasattr(response, "text") and response.text and response.text.strip():
+                return response.text.strip()
+            else:
+                errors.append(f"{m_name}: 空レスポンス")
+        except Exception as e:
+            err = str(e)[:100]
+            errors.append(f"{m_name}: {err}")
+            # レート制限っぽい場合は少し待つ
+            if any(x in err.lower() for x in ["429", "quota", "rate", "resource"]):
+                time.sleep(1.5)
+            continue
+
+    return "API呼び出しエラー（全モデル失敗）:\n" + "\n".join(errors)
+
+# --- 3. WEBサーチ ---
 def search_web_rumors_and_news(query: str) -> list:
     res = []
     try:
@@ -155,7 +122,7 @@ def search_web_rumors_and_news(query: str) -> list:
         pass
     return res
 
-# --- 4. クエリパラメータおよび入力 ---
+# --- 4. 入力 ---
 STYLES = ["デイトレード", "スキャルピング", "スイングトレード", "バイ＆ホールド"]
 
 qp_code = st.query_params.get("code", "6920")
@@ -164,7 +131,11 @@ query_code = str(qp_code[0] if isinstance(qp_code, list) else qp_code).strip().u
 qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
-st.markdown('<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ULTIMATE HACK]</div><div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ WEBマルチサーチ・噂の真偽判定 ＆ 5名ペルソナ容赦なきクロス尋問</div></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ULTIMATE HACK]</div>'
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ WEBマルチサーチ・噂の真偽判定 ＆ 5名ペルソナ容赦なきクロス尋問</div></div>',
+    unsafe_allow_html=True
+)
 
 _boot.empty()
 col_in1, col_in2 = st.columns([2.5, 1])
@@ -196,7 +167,7 @@ def load_deep_stock_data(code: str):
     except Exception:
         return None, None, {}
 
-with st.spinner(f"📡 【{fc}】の全株価データ取得 ＆ WEBディープサーチ（事実・噂の収集）を実行中..."):
+with st.spinner(f"📡 【{fc}】の全株価データ取得 ＆ WEBディープサーチを実行中..."):
     df_5m, df_1d, info = load_deep_stock_data(fc)
     web_snippets = search_web_rumors_and_news(f"{fc} 株価 思惑 噂 決算 ニュース")
 
@@ -210,7 +181,7 @@ curr_px = float(df_5m["Close"].iloc[-1])
 prev_px = float(df_5m["Close"].iloc[-2]) if len(df_5m) >= 2 else curr_px
 chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
 
-# --- 5. メインダッシュボード ---
+# --- 5. ダッシュボード ---
 st.markdown(f"""
 <div class="rank-card">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -235,11 +206,11 @@ st.line_chart(df_5m["Close"])
 st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットの噂")
 web_str_joined = "\n".join(web_snippets) if web_snippets else "特段の新規ヘッドライン・噂なし"
 
-# 同じ銘柄・同じニュースなら再実行時にAPIを叩かない（クォータ節約）
 sort_key = f"sorted::{fc}::{hash(web_str_joined)}"
 _res = ""
+
 if sort_key not in st.session_state:
-    with st.spinner("🤖 AIがWEB上の最新情報・噂話を「事実（ファクト）」と「根拠なき噂（思惑）」に仕分け中..."):
+    with st.spinner("🤖 AIがWEB上の最新情報・噂話を「事実」と「思惑」に仕分け中...（最大30秒程度）"):
         sorting_sys = (
             "あなたは極限までシニカルな金融アナリストです。"
             "提供されたWEB上のヘッドラインや噂を、ファクト（確度の高い事実）と、"
@@ -248,10 +219,12 @@ if sort_key not in st.session_state:
             "【事実】\n（ここに事実の分析）\n【思惑】\n（ここに噂・思惑の分析）"
         )
         sorting_user = f"対象銘柄: {corp_name} ({fc})\nWEB収集データ:\n{web_str_joined}"
+        
         _res = call_gemini(sorting_sys, sorting_user)
+        
         if _res.startswith(("API", "⚠️")):
-            st.warning(_res)  # エラーはキャッシュせず、次回再試行できるようにする
-            _res = "【事実】\n（AI分析に失敗しました）\n【思惑】\n（再読み込みで再試行できます）"
+            st.warning(_res)
+            _res = "【事実】\n（AI分析に失敗しました。再読み込みで再試行できます）\n【思惑】\n（再試行してください）"
         else:
             st.session_state[sort_key] = _res
 
@@ -267,7 +240,7 @@ st.markdown(f'<div class="fact-box"><b>🔍 【事実・ファクト分析】</b
 if rumor_part.strip():
     st.markdown(f'<div class="rumor-box"><b>🕵️‍♂️ 【市場の噂・仕手系思惑（要注意）】</b><br>{to_html(rumor_part.strip())}</div>', unsafe_allow_html=True)
 
-# --- 7. 5名ペルソナによる容赦なきクロス尋問合議 ---
+# --- 7. 5名ペルソナ ---
 st.markdown("#### 🏛️ 5名プロフェッショナル・クオンツ監査官による極限クロス尋問")
 
 council_sys = f"""あなたはプロフェッショナル・クオンツ監査委員会の5名の専門監査官（IGNIS / TECHNOS / SENTINEL / AEGIS / NEXUS）です。
@@ -298,7 +271,6 @@ for msg in st.session_state["ultimate_chat_history"]:
     b_class = "chat-bubble-ai" if msg["role"] == "ai" else "chat-bubble-user"
     st.markdown(f'<div class="{b_class}">{to_html(msg["text"])}</div>', unsafe_allow_html=True)
 
-# 無限壁打ちフォーム
 with st.form("ultimate_q_form", clear_on_submit=True):
     user_deep_q = st.text_input(
         "💬 この銘柄について監査官に追加で突っ込む・質問する",
