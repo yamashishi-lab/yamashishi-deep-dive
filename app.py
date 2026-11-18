@@ -5,6 +5,7 @@ import numpy as np
 import json, os, re, ssl, urllib.request, urllib.parse, hashlib, hmac, datetime
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
+import html
 
 st.set_page_config(
     page_title="YAMASHISHI DEEP DIVE [ULTIMATE HACK]",
@@ -53,7 +54,7 @@ def call_gemini(sys_p: str, user_p: str) -> str:
         "systemInstruction": {"parts": [{"text": sys_p}]},
         "contents": [{"role": "user", "parts": [{"text": user_p}]}]
     }).encode("utf-8")
-    
+
     try:
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=15.0, context=ssl.create_default_context()) as resp:
@@ -79,9 +80,12 @@ def search_web_rumors_and_news(query: str) -> list:
         pass
     return res
 
-# --- 4. クエリパラメータおよび入力 ---
-query_code = st.query_params.get("code", "6920").strip().upper()
-query_style = st.query_params.get("style", "デイトレード").strip()
+# --- 4. クエリパラメータおよび入力（安全な取得に修正） ---
+qp_code = st.query_params.get("code", "6920")
+query_code = str(qp_code[0] if isinstance(qp_code, list) else qp_code).strip().upper()
+
+qp_style = st.query_params.get("style", "デイトレード")
+query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
 st.markdown('<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ULTIMATE HACK]</div><div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ WEBマルチサーチ・噂の真偽判定 ＆ 5名ペルソナ容赦なきクロス尋問</div></div>', unsafe_allow_html=True)
 
