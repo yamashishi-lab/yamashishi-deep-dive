@@ -6,10 +6,12 @@ import os, re, time
 import urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 import html
+import json
 import datetime
+import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [STABLE CHART]",
+    page_title="YAMASHISHI DEEP DIVE [ECHARTS HACK]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -69,8 +71,8 @@ qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
 st.markdown(
-    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [STABLE CHART]</div>'
-    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ 高速ネイティブ描画チャート</div></div>',
+    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ECHARTS HACK]</div>'
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ Apache ECharts ヌルヌル動く最新チャート</div></div>',
     unsafe_allow_html=True
 )
 
@@ -107,9 +109,9 @@ def load_deep_stock_data(code: str):
         return df_5m, df_1d, info, False
     except Exception:
         np.random.seed(hash(code) % 2**32)
-        dates = pd.date_range(end=datetime.datetime.now(), periods=120, freq="5min")
+        dates = pd.date_range(end=datetime.datetime.now(), periods=150, freq="5min")
         base_price = 18500.0 if "6920" in code else 3000.0
-        walk = np.random.normal(0, 40, size=120).cumsum()
+        walk = np.random.normal(0, 45, size=150).cumsum()
         prices = base_price + walk
         df_5m = pd.DataFrame({"Close": prices}, index=dates)
         info = {
@@ -151,16 +153,133 @@ st.markdown(f"""
 if is_fallback:
     st.info("ℹ️ 現在のホスティング環境制限によりYahoo Financeからの直接取得が制限されたため、スムーズなモックシミュレーションデータでチャートを表示しています。")
 
-# --- 5. Streamlit標準・高速ネイティブインタラクティブチャート ---
-st.markdown("#### 📈 プロフェッショナル・プライスアクション・チャート")
+# --- 5. Apache ECharts（ヌルヌル動くハイエンド・スムーズチャート） ---
+st.markdown("#### 📈 プロフェッショナル・インタラクティブ・チャート (Apache ECharts)")
 
-# Streamlit標準機能を用いた確実で美しいラインチャート（データフレームを直接渡して高速描画）
-chart_df = pd.DataFrame({
-    "株価 (円)": df_5m["Close"]
-})
+times_list = []
+prices_list = []
+for idx, row in df_5m.iterrows():
+    try:
+        t_str = idx.strftime('%m/%d %H:%M')
+    except Exception:
+        t_str = str(idx)
+    times_list.append(t_str)
+    prices_list.append(round(float(row["Close"]), 1))
 
-st.line_chart(chart_df, height=350, color="#f43f5e")
-st.caption("💡 ヒント: チャートの右上にあるアイコンからフルスクリーン表示やデータのダウンロード、拡大が可能です。")
+times_json = json.dumps(times_list)
+prices_json = json.dumps(prices_list)
+
+echarts_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: #03050a;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        #chart-container {
+            width: 100%;
+            height: 380px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+        }
+    </style>
+</head>
+<body>
+    <div id="chart-container"></div>
+    <script>
+        var chartDom = document.getElementById('chart-container');
+        var myChart = echarts.init(chartDom, 'dark');
+        
+        var option = {
+            backgroundColor: '#070b14',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'cross',
+                    lineStyle: { color: '#38bdf8', width: 1, type: 'dashed' }
+                },
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                borderColor: '#f43f5e',
+                textStyle: { color: '#f8fafc', fontSize: 12 }
+            },
+            grid: {
+                top: 30,
+                bottom: 40,
+                left: 60,
+                right: 20
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: __TIMES_DATA__,
+                axisLine: { lineStyle: { color: '#334155' } },
+                axisLabel: { color: '#94a3b8', fontSize: 10 }
+            },
+            yAxis: {
+                type: 'value',
+                scale: true,
+                splitLine: { lineStyle: { color: 'rgba(30, 41, 59, 0.4)', type: 'dotted' } },
+                axisLine: { lineStyle: { color: '#334155' } },
+                axisLabel: { color: '#94a3b8', fontSize: 10 }
+            },
+            dataZoom: [
+                {
+                    type: 'inside',
+                    start: 50,
+                    end: 100
+                },
+                {
+                    type: 'slider',
+                    show: true,
+                    borderColor: 'transparent',
+                    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                    fillerColor: 'rgba(244, 63, 94, 0.2)',
+                    handleStyle: { color: '#f43f5e' },
+                    textStyle: { color: '#94a3b8' },
+                    bottom: 5,
+                    height: 18
+                }
+            ],
+            series: [{
+                name: '終値',
+                type: 'line',
+                smooth: 0.2,
+                symbol: 'none',
+                lineStyle: {
+                    color: '#f43f5e',
+                    width: 2.5
+                },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(244, 63, 94, 0.45)' },
+                        { offset: 1, color: 'rgba(244, 63, 94, 0.0)' }
+                    ])
+                },
+                data: __PRICES_DATA__
+            }]
+        };
+
+        myChart.setOption(option);
+
+        window.addEventListener('resize', function () {
+            myChart.resize();
+        });
+    </script>
+</body>
+</html>
+"""
+
+echarts_code = echarts_template.replace('__TIMES_DATA__', times_json).replace('__PRICES_DATA__', prices_json)
+
+components.html(echarts_code, height=410)
+st.caption("💡 ヌルヌル操作ヒント: マウスホイールや下のスクロールバーで拡大・縮小、ドラッグで自由に移動できます。美しく洗練されたプロ仕様の最新チャートです。")
 
 # --- 6. WEBサーチ結果の表示 ---
 st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
