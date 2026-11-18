@@ -1,3 +1,3 @@
-secrets.toml
+
 GEMINI_API_KEY = "AQ.Ab8RN6K8sqCQK6XqZIqrE4P6Bjxl_YQGNd38NEjDy36x2hVPlQmini"
 SECRET_KEY = "任意のランダムな文字列"
