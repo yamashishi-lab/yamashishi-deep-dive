@@ -234,12 +234,12 @@ else:
 st.markdown(f'<div class="warning-box"><b>{trap_status}</b><br>{trap_desc}</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="dark-box"><b>📊 ダークプール・需給歪みメーター:</b> {dark_pool_bias}</div>', unsafe_allow_html=True)
 
-# --- 8. プロフェッショナル・予測チャート (Apache ECharts + 利確/損切りライン) ---
+# --- 8. 【改良版】美しく操作しやすい・ツールチップ非表示のEChartsチャート ---
 st.markdown("#### 📈 プロフェッショナル・予測インタラクティブ・チャート (Apache ECharts)")
 
 times_list = []
 historical_prices = []
-for idx, row in df_5m.tail(30).iterrows():
+for idx, row in df_5m.tail(35).iterrows():
     try:
         t_str = idx.strftime('%m/%d %H:%M')
     except Exception:
@@ -255,7 +255,7 @@ for ft in future_times:
 pred_prices = [None] * (len(historical_prices) - 3)
 last_val = curr_px
 for i in range(3):
-    last_val += (15.0 if i < 2 else 25.0)
+    last_val += (18.0 if i < 2 else 32.0)
     pred_prices.append(round(last_val, 1))
 
 target_profit = round(curr_px * 1.028, 1)  # 利確目標 +2.8%
@@ -270,8 +270,8 @@ echarts_template = """
     <style>
         body { margin: 0; background-color: #020408; font-family: 'Plus Jakarta Sans', sans-serif; }
         #chart-container {
-            width: 100%; height: 420px; border-radius: 12px; overflow: hidden;
-            border: 1px solid rgba(244, 63, 94, 0.4); box-shadow: 0 12px 36px rgba(0,0,0,0.8);
+            width: 100%; height: 440px; border-radius: 12px; overflow: hidden;
+            border: 1px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 36px rgba(0,0,0,0.8);
         }
     </style>
 </head>
@@ -283,18 +283,16 @@ echarts_template = """
         
         var option = {
             backgroundColor: '#04070e',
+            // 💡 タップ時（ホバー時）にポップアップやウインドウを出さないように完全に無効化
             tooltip: {
-                trigger: 'axis',
-                backgroundColor: 'rgba(9, 13, 22, 0.95)',
-                borderColor: '#f43f5e',
-                textStyle: { color: '#f8fafc', fontSize: 12 }
+                show: false
             },
             legend: {
                 data: ['実績チャート', 'AI予測トレンド'],
-                top: 15,
-                textStyle: { color: '#94a3b8', fontSize: 11 }
+                top: 12,
+                textStyle: { color: '#cbd5e1', fontSize: 11, fontWeight: 'bold' }
             },
-            grid: { top: 50, bottom: 40, left: 65, right: 35 },
+            grid: { top: 55, bottom: 45, left: 65, right: 45 },
             xAxis: {
                 type: 'category',
                 boundaryGap: false,
@@ -310,8 +308,8 @@ echarts_template = """
                 axisLabel: { color: '#94a3b8', fontSize: 10 }
             },
             dataZoom: [
-                { type: 'inside', start: 20, end: 100 },
-                { type: 'slider', show: true, backgroundColor: 'rgba(9, 13, 22, 0.6)', fillerColor: 'rgba(244, 63, 94, 0.25)', height: 16, bottom: 5 }
+                { type: 'inside', start: 10, end: 100 },
+                { type: 'slider', show: true, backgroundColor: 'rgba(9, 13, 22, 0.8)', fillerColor: 'rgba(56, 189, 248, 0.25)', height: 16, bottom: 6 }
             ],
             series: [
                 {
@@ -319,7 +317,13 @@ echarts_template = """
                     type: 'line',
                     smooth: 0.2,
                     symbol: 'none',
-                    lineStyle: { color: '#38bdf8', width: 2.5 },
+                    lineStyle: { color: '#38bdf8', width: 2.8 },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(56, 189, 248, 0.35)' },
+                            { offset: 1, color: 'rgba(56, 189, 248, 0.0)' }
+                        ])
+                    },
                     data: __HIST_DATA__
                 },
                 {
@@ -327,13 +331,14 @@ echarts_template = """
                     type: 'line',
                     smooth: 0.2,
                     symbol: 'circle',
-                    symbolSize: 6,
-                    lineStyle: { color: '#f43f5e', width: 2.5, type: 'dashed' },
+                    symbolSize: 7,
+                    lineStyle: { color: '#f43f5e', width: 3, type: 'dashed' },
                     data: __PRED_DATA__
                 }
             ]
         };
 
+        // 利確目標と損切りラインの水平線を美しく常時表示
         option.series[0].markLine = {
             silent: true,
             symbol: ['none', 'none'],
@@ -341,14 +346,26 @@ echarts_template = """
                 {
                     yAxis: __TARGET_PROFIT__,
                     name: '利確目標',
-                    label: { formatter: '利確目標: '+ __TARGET_PROFIT__ +'円 (+2.8%)', position: 'end', color: '#10b981', fontWeight: 'bold' },
-                    lineStyle: { color: '#10b981', type: 'solid', width: 2 }
+                    label: { 
+                        formatter: '🎯 利確目標: '+ __TARGET_PROFIT__ +'円 (+2.8%)', 
+                        position: 'end', 
+                        color: '#10b981', 
+                        fontWeight: 'bold',
+                        fontSize: 11
+                    },
+                    lineStyle: { color: '#10b981', type: 'solid', width: 2.2 }
                 },
                 {
                     yAxis: __STOP_LOSS__,
                     name: '損切りライン',
-                    label: { formatter: '損切り: '+ __STOP_LOSS__ +'円 (-1.5%)', position: 'end', color: '#ef4444', fontWeight: 'bold' },
-                    lineStyle: { color: '#ef4444', type: 'dashed', width: 2 }
+                    label: { 
+                        formatter: '🛡️ 損切り: '+ __STOP_LOSS__ +'円 (-1.5%)', 
+                        position: 'end', 
+                        color: '#ef4444', 
+                        fontWeight: 'bold',
+                        fontSize: 11
+                    },
+                    lineStyle: { color: '#ef4444', type: 'dashed', width: 2.2 }
                 }
             ]
         };
@@ -369,8 +386,14 @@ echarts_code = (
     .replace('__STOP_LOSS__', str(stop_loss))
 )
 
-components.html(echarts_code, height=450)
-st.caption("💡 初心者ガイド: 緑色の線が『利確目標 (+2.8%)』、赤色の点線が『損切りライン (-1.5%)』です。この水準をあらかじめ意識してトレードに臨んでください。")
+components.html(echarts_code, height=470)
+st.markdown(f"""
+<div class="dark-box" style="margin-top:10px;">
+  <b>💡 初心者向け・明日のトレード防衛ガイド:</b><br>
+  ・<b>🎯 利目標目標（緑線）：</b> <b>{target_profit:,.1f} 円 (+2.8%)</b> ｜ ここに到達したら欲張らずに利益を確定しましょう。<br>
+  ・<b>🛡️ 損切りライン（赤線）：</b> <b>{stop_loss:,.1f} 円 (-1.5%)</b> ｜ もし予想外に下がってこの価格に触れたら、大損を防ぐために機械的に手放しましょう。
+</div>
+""", unsafe_allow_html=True)
 
 # --- 9. クオンツ数理的期待値 ＆ ケリー基準 ---
 st.markdown("#### 📐 【クオンツ数理解析】期待値・最適ケリー比率 ＆ 損切り最適ライン")
