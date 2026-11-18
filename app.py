@@ -6,10 +6,9 @@ import os, re, time
 import urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 import html
-import google.generativeai as genai
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [ULTIMATE HACK]",
+    page_title="YAMASHISHI DEEP DIVE [NO-GEMINI HACK]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -46,67 +45,7 @@ def to_html(text: str) -> str:
     t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
     return t.replace("\n", "<br>")
 
-# --- 2. APIキー・Gemini通信 ---
-def get_gemini_key():
-    val = os.environ.get("GEMINI_API_KEY", "")
-    if not val:
-        try:
-            if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
-                val = st.secrets["GEMINI_API_KEY"]
-        except Exception:
-            pass
-    return str(val).strip()
-
-GEMINI_API_KEY = get_gemini_key()
-
-# 安定して動きやすいモデル優先順（2026年11月時点）
-FALLBACK_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.6-flash",
-    "gemini-2.5-flash",
-    "gemini-flash-latest",
-]
-
-def call_gemini(sys_p: str, user_p: str, max_retries: int = 4) -> str:
-    """高速・堅牢版。list_modelsを呼ばず、直接フォールバックモデルを順に試す"""
-    if not GEMINI_API_KEY:
-        return "⚠️ Gemini APIキーが設定されていません。StreamlitのSecretsに GEMINI_API_KEY を設定してください。"
-
-    try:
-        genai.configure(api_key=GEMINI_API_KEY, transport="rest")
-    except Exception as e:
-        return f"API初期化エラー: {e}"
-
-    errors = []
-    models_to_try = FALLBACK_MODELS[:max_retries]
-
-    for i, m_name in enumerate(models_to_try):
-        try:
-            model = genai.GenerativeModel(
-                model_name=m_name,
-                system_instruction=sys_p
-            )
-            # タイムアウトを短めに設定（固まるのを防ぐ）
-            response = model.generate_content(
-                user_p,
-                request_options={"timeout": 25}  # 25秒で打ち切り
-            )
-            if response and hasattr(response, "text") and response.text and response.text.strip():
-                return response.text.strip()
-            else:
-                errors.append(f"{m_name}: 空レスポンス")
-        except Exception as e:
-            err = str(e)[:100]
-            errors.append(f"{m_name}: {err}")
-            # レート制限っぽい場合は少し待つ
-            if any(x in err.lower() for x in ["429", "quota", "rate", "resource"]):
-                time.sleep(1.5)
-            continue
-
-    return "API呼び出しエラー（全モデル失敗）:\n" + "\n".join(errors)
-
-# --- 3. WEBサーチ ---
+# --- 2. WEBサーチ ---
 def search_web_rumors_and_news(query: str) -> list:
     res = []
     try:
@@ -122,7 +61,7 @@ def search_web_rumors_and_news(query: str) -> list:
         pass
     return res
 
-# --- 4. 入力 ---
+# --- 3. 入力 ---
 STYLES = ["デイトレード", "スキャルピング", "スイングトレード", "バイ＆ホールド"]
 
 qp_code = st.query_params.get("code", "6920")
@@ -132,8 +71,8 @@ qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
 st.markdown(
-    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ULTIMATE HACK]</div>'
-    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ WEBマルチサーチ・噂の真偽判定 ＆ 5名ペルソナ容赦なきクロス尋問</div></div>',
+    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [NO-GEMINI HACK]</div>'
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ yfinance株価取得 ＆ WEBマルチサーチ対応版</div></div>',
     unsafe_allow_html=True
 )
 
@@ -181,12 +120,12 @@ curr_px = float(df_5m["Close"].iloc[-1])
 prev_px = float(df_5m["Close"].iloc[-2]) if len(df_5m) >= 2 else curr_px
 chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
 
-# --- 5. ダッシュボード ---
+# --- 4. ダッシュボード ---
 st.markdown(f"""
 <div class="rank-card">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
     <div>
-      <span class="pill-badge" style="background:#f43f5e;color:#fff;font-weight:800;">🔥 極限ハッキング中</span>
+      <span class="pill-badge" style="background:#f43f5e;color:#fff;font-weight:800;">🔥 ハッキング中 (No-Gemini)</span>
       <span class="pill-badge" style="background:rgba(56,189,248,0.2);color:#38bdf8;">{html.escape(sector)}</span>
       <div style="font-size:22px;font-weight:800;color:#f8fafc;margin-top:6px;">{html.escape(corp_name)} <span style="font-size:13px;color:#f43f5e;">[{html.escape(fc)}]</span></div>
     </div>
@@ -202,89 +141,38 @@ st.markdown(f"""
 st.markdown("#### 📈 直近5分足プライスアクション ＆ モメンタム")
 st.line_chart(df_5m["Close"])
 
-# --- 6. WEBサーチ＆噂・事実の仕分け ---
-st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットの噂")
+# --- 5. WEBサーチ＆噂・事実の表示 ---
+st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
 web_str_joined = "\n".join(web_snippets) if web_snippets else "特段の新規ヘッドライン・噂なし"
 
-sort_key = f"sorted::{fc}::{hash(web_str_joined)}"
-_res = ""
+st.markdown(f'<div class="fact-box"><b>🔍 【取得したWEBニュースヘッドライン】</b><br>{to_html(web_str_joined)}</div>', unsafe_allow_html=True)
 
-if sort_key not in st.session_state:
-    with st.spinner("🤖 AIがWEB上の最新情報・噂話を「事実」と「思惑」に仕分け中...（最大30秒程度）"):
-        sorting_sys = (
-            "あなたは極限までシニカルな金融アナリストです。"
-            "提供されたWEB上のヘッドラインや噂を、ファクト（確度の高い事実）と、"
-            "思惑・仕手系ウワサ（根拠の薄い噂・思惑）に分類し、それぞれの危険度や影響度を日本語で解説してください。\n"
-            "必ず次の形式で出力してください：\n"
-            "【事実】\n（ここに事実の分析）\n【思惑】\n（ここに噂・思惑の分析）"
-        )
-        sorting_user = f"対象銘柄: {corp_name} ({fc})\nWEB収集データ:\n{web_str_joined}"
-        
-        _res = call_gemini(sorting_sys, sorting_user)
-        
-        if _res.startswith(("API", "⚠️")):
-            st.warning(_res)
-            _res = "【事実】\n（AI分析に失敗しました。再読み込みで再試行できます）\n【思惑】\n（再試行してください）"
-        else:
-            st.session_state[sort_key] = _res
+# --- 6. 5名ペルソナ（静的表示版） ---
+st.markdown("#### 🏛️ 5名プロフェッショナル・クオンツ監査官による監査ビュー")
 
-sorted_analysis = st.session_state.get(sort_key, _res)
+default_debate = """**IGNIS**: 短期モメンタムと直近の株価推移を監視中。出来高の急増に警戒しつつ、飛びつき買いは避ける方針を推奨する。
+**TECHNOS**: チャート上の移動平均線および価格帯別出来高の壁を意識しろ。上値抵抗帯を明確にブレイクするかどうかが焦点だ。
+**SENTINEL**: 取得したWEBニュースやSNS上の噂に惑わされないこと。情報の真偽を冷静に見極める必要がある。
+**AEGIS**: 資金管理（ケリー基準等）を徹底し、許容リスクを超えたロットでのエントリーは厳禁とする。
+**NEXUS**: 総合裁定。選択されたスタイル（""" + target_style + """）に基づき、規律あるトレード計画を励行せよ。"""
 
-if "【思惑】" in sorted_analysis:
-    fact_part, rumor_part = sorted_analysis.split("【思惑】", 1)
-    fact_part = fact_part.replace("【事実】", "").strip()
-else:
-    fact_part, rumor_part = sorted_analysis.replace("【事実】", "").strip(), ""
-
-st.markdown(f'<div class="fact-box"><b>🔍 【事実・ファクト分析】</b><br>{to_html(fact_part)}</div>', unsafe_allow_html=True)
-if rumor_part.strip():
-    st.markdown(f'<div class="rumor-box"><b>🕵️‍♂️ 【市場の噂・仕手系思惑（要注意）】</b><br>{to_html(rumor_part.strip())}</div>', unsafe_allow_html=True)
-
-# --- 7. 5名ペルソナ ---
-st.markdown("#### 🏛️ 5名プロフェッショナル・クオンツ監査官による極限クロス尋問")
-
-council_sys = f"""あなたはプロフェッショナル・クオンツ監査委員会の5名の専門監査官（IGNIS / TECHNOS / SENTINEL / AEGIS / NEXUS）です。
-対象銘柄「{corp_name}（{fc}）」、分析スタイル「{target_style}」、および先ほど収集したWEB上の最新情報・噂話をすべて踏まえ、この銘柄を徹底的に深掘りした「容赦ない監査合議」を出力してください。
-甘い見通しは一切排除し、噂がハメ込み（ダマシ）なのか本物なのかを激論させてください。
-以下の5名の発言をマークダウン形式（「**[名前]**: 内容」）で明確に分けて出力してください。
-1. IGNIS（短期モメンタム執行 / 飛びつき厳禁の判断）
-2. TECHNOS（3階層MTF・価格帯別出来高 / 上値の壁の分析）
-3. SENTINEL（リスク・しこり壁・悪材料・噂のダマシ監査）
-4. AEGIS（検証・最大DD・ケリー資金管理 / ロットの許容度）
-5. NEXUS（最終執行裁定統括 / 買いか、空売りか、完全見送りかの最終ジャッジ）
-
-【参考：収集済みWEB情報】
-{web_str_joined}"""
-
-council_user = f"現在値: {curr_px}円, スタイル: {target_style}。収集されたWEB情報・噂を考慮し、この銘柄の真の優位性と致命的リスクを徹底的にクロス尋問してください。"
-
-if "ultimate_chat_history" not in st.session_state or st.session_state.get("target_code_cached") != fc:
-    st.session_state["ultimate_chat_history"] = []
+if "chat_history" not in st.session_state or st.session_state.get("target_code_cached") != fc:
+    st.session_state["chat_history"] = [{"role": "ai", "text": default_debate}]
     st.session_state["target_code_cached"] = fc
 
-if st.button("🔥 5名の監査官にこの銘柄の極限クロス尋問を行わせる", type="primary", use_container_width=True):
-    with st.spinner("🔵 5名の監査官がバチバチに議論中..."):
-        initial_debate = call_gemini(council_sys, council_user)
-        st.session_state["ultimate_chat_history"] = [{"role": "ai", "text": initial_debate}]
-
-for msg in st.session_state["ultimate_chat_history"]:
+for msg in st.session_state["chat_history"]:
     b_class = "chat-bubble-ai" if msg["role"] == "ai" else "chat-bubble-user"
     st.markdown(f'<div class="{b_class}">{to_html(msg["text"])}</div>', unsafe_allow_html=True)
 
-with st.form("ultimate_q_form", clear_on_submit=True):
+with st.form("q_form", clear_on_submit=True):
     user_deep_q = st.text_input(
-        "💬 この銘柄について監査官に追加で突っ込む・質問する",
-        placeholder="例: 「この噂は仕手の嵌め込みの可能性が高いのでは？」「具体的な損切りラインを再計算して」"
+        "💬 この銘柄について監査官ビューに追加するメモや質問",
+        placeholder="例: 「押し目買いの具体的なターゲットラインを考察」"
     )
-    submitted = st.form_submit_button("突撃質問を投下する", use_container_width=True)
+    submitted = st.form_submit_button("メモを追加する", use_container_width=True)
 
 if submitted and user_deep_q.strip():
-    st.session_state["ultimate_chat_history"].append({"role": "user", "text": f"🗣️ **あなた**: {user_deep_q}"})
-    with st.spinner("監査官が回答を再構築中..."):
-        history_str = "\n".join([m["text"] for m in st.session_state["ultimate_chat_history"]])
-        follow_res = call_gemini(
-            council_sys,
-            f"これまでの議論・対話履歴:\n{history_str}\n\n追加の突撃質問: {user_deep_q}"
-        )
-        st.session_state["ultimate_chat_history"].append({"role": "ai", "text": follow_res})
+    st.session_state["chat_history"].append({"role": "user", "text": f"🗣️ **あなた**: {user_deep_q}"})
+    reply_text = f"**NEXUS（統括裁定）**: ご提示いただいたメモ「{user_deep_q}」を反映しました。リアルタイムの株価変動と出来高に十分注意してトレードに臨んでください。"
+    st.session_state["chat_history"].append({"role": "ai", "text": reply_text})
     st.rerun()
