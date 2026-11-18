@@ -122,7 +122,7 @@ def load_deep_stock_data(code: str):
 
 with st.spinner(f"📡 【{fc}】の全株価データ取得 ＆ WEBディープサーチを実行中..."):
     df_5m, df_1d, info, is_fallback = load_deep_stock_data(fc)
-    web_snippets = search_web_rumors_and_news(f"{fc} 株価 思惑 噂 决算 ニュース")
+    web_snippets = search_web_rumors_and_news(f"{fc} 株価 思惑 噂 決算 ニュース")
 
 corp_name = info.get("longName") or info.get("shortName") or fc
 sector = info.get("sector") or "個別グロース/主力"
@@ -153,13 +153,11 @@ st.markdown(f"""
 if is_fallback:
     st.info("ℹ️ 現在のホスティング環境制限によりYahoo Financeからの直接取得が制限されたため、スムーズなモックシミュレーションデータでチャートを表示しています。")
 
-# --- 5. TradingView Lightweight Charts（超なめらか・プロ仕様チャート） ---
+# --- 5. TradingView Lightweight Charts（通常の文字列テンプレートを使用し、括弧エラーを完全に防止） ---
 st.markdown("#### 📈 プロフェッショナル・インタラクティブ・チャート (TradingView Engine)")
 
-# データをTradingView用JSONフォーマットに変換 (Unix秒タイムスタンプ)
 chart_data = []
 for idx, row in df_5m.iterrows():
-    # 日本時間等のタイムスタンプを秒単位に変換
     try:
         ts = int(idx.timestamp())
     except Exception:
@@ -168,26 +166,27 @@ for idx, row in df_5m.iterrows():
 
 chart_json_str = json.dumps(chart_data)
 
-tv_html_code = f"""
+# fではなく通常のトリプルクォーテーション文字列にする
+tv_html_template = """
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        body {{
+        body {
             margin: 0;
             background-color: #03050a;
             font-family: 'Plus Jakarta Sans', sans-serif;
-        }}
-        #chart-container {{
+        }
+        #chart-container {
             width: 100%;
             height: 380px;
             border-radius: 12px;
             overflow: hidden;
             border: 1px solid rgba(148, 163, 184, 0.2);
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-        }}
+        }
     </style>
 </head>
 <body>
@@ -195,62 +194,64 @@ tv_html_code = f"""
     <script>
         const chartContainer = document.getElementById('chart-container');
         
-        const chart = LightweightCharts.createChart(chartContainer, {{
+        const chart = LightweightCharts.createChart(chartContainer, {
             width: chartContainer.clientWidth,
             height: 380,
-            layout: {{
-                background: {{ type: 'solid', color: '#070b14' }},
+            layout: {
+                background: { type: 'solid', color: '#070b14' },
                 textColor: '#94a3b8',
             },
-            grid: {{
-                vertLines: {{ color: 'rgba(30, 41, 59, 0.5)' }},
-                horzLines: {{ color: 'rgba(30, 41, 59, 0.5)' }},
+            grid: {
+                vertLines: { color: 'rgba(30, 41, 59, 0.5)' },
+                horzLines: { color: 'rgba(30, 41, 59, 0.5)' },
             },
-            crosshair: {{
+            crosshair: {
                 mode: LightweightCharts.CrosshairMode.Normal,
-                vertLine: {{
+                vertLine: {
                     color: '#38bdf8',
                     width: 1,
                     style: LightweightCharts.LineStyle.Dashed,
                     labelBackgroundColor: '#0284c7',
-                }},
-                horzLine: {{
+                },
+                horzLine: {
                     color: '#38bdf8',
                     width: 1,
                     style: LightweightCharts.LineStyle.Dashed,
                     labelBackgroundColor: '#0284c7',
-                }},
+                },
             },
-            rightPriceScale: {{
+            rightPriceScale: {
                 borderColor: 'rgba(51, 65, 85, 0.6)',
-            }},
-            timeScale: {{
+            },
+            timeScale: {
                 borderColor: 'rgba(51, 65, 85, 0.6)',
                 timeVisible: true,
                 secondsVisible: false,
-            }},
-        }});
+            },
+        });
 
-        const areaSeries = chart.addAreaSeries({{
+        const areaSeries = chart.addAreaSeries({
             topColor: 'rgba(244, 63, 94, 0.45)',
             bottomColor: 'rgba(244, 63, 94, 0.02)',
             lineColor: '#f43f5e',
             lineWidth: 2.5,
-        }});
+        });
 
-        const rawData = {chart_json_str};
+        const rawData = __CHART_DATA_PLACEHOLDER__;
         areaSeries.setData(rawData);
 
         chart.timeScale().fitContent();
 
-        // レスポンシブ対応
-        window.addEventListener('resize', () => {{
+        window.addEventListener('resize', () => {
             chart.resize(chartContainer.clientWidth, 380);
-        }});
+        });
     </script>
 </body>
 </html>
 """
+
+# プレースホルダーを実際の株価データJSONに置換する
+tv_html_code = tv_html_template.replace('__CHART_DATA_PLACEHOLDER__', chart_json_str)
 
 components.html(tv_html_code, height=400)
 st.caption("💡 ヌルヌル操作ヒント: マウスドラッグでチャートの左右移動、マウスホイールで拡大・縮小が完全に滑らかに行えます。")
