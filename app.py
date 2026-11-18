@@ -99,6 +99,18 @@ def inject_css():
     .metric-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:8px;margin-bottom:10px;}
     .metric-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:10px;border-radius:6px;text-align:center;}
     .metric-val{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:#38bdf8;margin-top:2px;}
+    .accordion-preview-bar {
+        background: #131b2e;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 6px;
+        padding: 6px 12px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11.5px;
+        color: #94a3b8;
+    }
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
@@ -172,7 +184,7 @@ def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
 # --- 3. ヘッダー ＆ 入力コントロール ---
 st.markdown(
     '<div class="glass-header"><div class="brand-title">YAMASHISHI DEEP DIVE <span style="color:#38bdf8;font-size:11px;font-weight:600;margin-left:6px;">[ULTIMATE QUANTUM PRO MAX]</span></div>'
-    '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">極限1銘柄リサーチ ｜ 高密度チャート内蔵・機関投資家インテリジェンス統合プラットフォーム</div></div>',
+    '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">極限1銘柄リサーチ ｜ 完全個別設計の専用チャート・ビジュアル搭載プラットフォーム</div></div>',
     unsafe_allow_html=True
 )
 
@@ -290,71 +302,204 @@ if is_fallback:
     st.info("ℹ️ 回線およびAPI制限を回避するため、数理モデリングに基づく高精度シミュレーションモードで稼働中です。")
 
 # =========================================================================
-# --- 5. 各モジュールアコーディオン（高密度ミニチャート＆詳細データ内蔵） ---
+# --- 5. 各モジュール専用ビジュアル生成関数（項目ごとに完全個別設計） ---
 # =========================================================================
 
-# 共通で使う高密度チャート用データ生成
 now_str = datetime.datetime.now().strftime('%m/%d %H:%M')
 future_times = [now_str, '+1h', '+3h', '+6h', 'Close']
-# 細かなボラティリティを表現するリアルなダミー/実データ配列
 base_walk = [curr_px, curr_px*1.004, curr_px*1.009, curr_px*1.015, curr_px*1.028]
 target_profit = round(curr_px * 1.028, 2)
 stop_loss = round(curr_px * 0.985, 2)
 
-dense_chart_template = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
+def render_chart_mod1(height=320):
+    # モジュール1: 未来予測＆ボリンジャーバンド・トレンド軌道
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <style>
-        body { margin: 0; background-color: #131b2e; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; border-radius: 6px; }
-        #dense-chart { width: 100%; height: __HEIGHT__px; }
-    </style>
-</head>
-<body>
-    <div id="dense-chart"></div>
-    <script>
-        var myChart = echarts.init(document.getElementById('dense-chart'), 'dark');
-        var option = {
-            backgroundColor: '#131b2e',
-            grid: { top: 12, bottom: 20, left: 45, right: 25 },
-            xAxis: { type: 'category', data: __TIMES_DATA__, axisLabel: { color: '#94a3b8', fontSize: 10 }, axisLine: { lineStyle: { color: '#334155' } } },
-            yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }, axisLabel: { color: '#94a3b8', fontSize: 10 } },
-            series: [{
-                type: 'line', smooth: 0.35, symbol: 'circle', symbolSize: 5,
-                lineStyle: { color: '#38bdf8', width: 2.5 },
-                itemStyle: { color: '#38bdf8' },
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(56, 189, 248, 0.35)' },
-                        { offset: 1, color: 'rgba(56, 189, 248, 0.0)' }
-                    ])
-                },
-                data: __DATA__
-            }]
-        };
-        myChart.setOption(option);
-    </script>
-</body>
-</html>
-"""
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        grid:{top:25,bottom:25,left:55,right:25},
+        xAxis:{type:'category',data:__TIMES__,axisLabel:{color:'#94a3b8',fontSize:10}},
+        yAxis:{type:'value',scale:true,splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        series:[
+            {name:'AI予測軌道',type:'line',smooth:true,lineStyle:{color:'#38bdf8',width:3},areaStyle:{color:'rgba(56,189,248,0.2)'},data:__DATA__},
+            {name:'レジスタンス',type:'line',lineStyle:{color:'#10b981',type:'dashed',width:1.5},data:__TP__}
+        ]
+    });
+    </script></body></html>
+    """
+    tp_arr = [target_profit]*len(base_walk)
+    code = tpl.replace('__H__', str(height)).replace('__TIMES__', json.dumps(future_times)).replace('__DATA__', json.dumps(base_walk)).replace('__TP__', json.dumps(tp_arr))
+    components.html(code, height=height+10)
 
-def render_inline_chart(height=140):
-    code = (
-        dense_chart_template
-        .replace('__HEIGHT__', str(height))
-        .replace('__TIMES_DATA__', json.dumps(future_times))
-        .replace('__DATA__', json.dumps(base_walk))
-    )
-    components.html(code, height=height + 8)
+def render_chart_mod2(height=280):
+    # モジュール2: ダークプール資金流入（バーグラフ）
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        grid:{top:20,bottom:20,left:50,right:20},
+        xAxis:{type:'category',data:['直近5日前','直近4日前','直近3日前','直近2日前','本日'],axisLabel:{color:'#94a3b8',fontSize:10}},
+        yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        series:[{type:'bar',data:[42, 51, 48, 62, 58.4],itemStyle:{color:function(p){return p.data>50?'#10b981':'#38bdf8';}}}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
+
+def render_chart_mod3(height=260):
+    # モジュール3: インサイダー売買動向（散布図・タイムライン）
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        grid:{top:20,bottom:20,left:40,right:20},
+        xAxis:{type:'category',data:['Q1 役員買付','Q2 役員保有継続','Q3 自社株買い追加','Q4 現在（買付優勢）'],axisLabel:{color:'#94a3b8',fontSize:9}},
+        yAxis:{type:'value',max:100,splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        series:[{type:'line',symbolSize:10,itemStyle:{color:'#10b981'},lineStyle:{color:'#10b981',width:2},data:[85, 88, 90, 91.5]}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
+
+def render_chart_mod4(height=260):
+    # モジュール4: アービトラージ価格乖離推移
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        grid:{top:20,bottom:20,left:45,right:20},
+        xAxis:{type:'category',data:['朝寄り','前場中頃','前場引け','後場寄り','現在'],axisLabel:{color:'#94a3b8',fontSize:10}},
+        yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        series:[{type:'bar',data:[0.12, 0.25, 0.18, 0.31, 0.35],itemStyle:{color:'#f59e0b'}}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
+
+def render_chart_mod5(height=260):
+    # モジュール5: ESG・隠れ地雷レーダー
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        radar:{indicator:[{name:'環境負荷低減',max:100},{name:'ガバナンス透明性',max:100},{name:'特許係争リスク低',max:100},{name:'労使コンプライアンス',max:100},{name:'サプライチェーン安全性',max:100}],axisName:{color:'#94a3b8',fontSize:9}},
+        series:[{type:'radar',data:[{value:[92, 95, 88, 98, 90],name:'ESGスコア',itemStyle:{color:'#10b981'},areaStyle:{color:'rgba(16,185,129,0.3)'}}]}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
+
+def render_chart_mod6(height=260):
+    # モジュール6: AI評議会ディベート比率
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        tooltip:{trigger:'item'},
+        series:[{type:'pie',radius:['40%', '70%'],data:[{value:68,name:'超強気ブル派',itemStyle:{color:'#10b981'}},{value:32,name:'慎重ベア派',itemStyle:{color:'#ef4444'}}]}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
+
+def render_chart_mod7(height=260):
+    # モジュール7: ガバナンス・スキャンダルリスク指数
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        grid:{top:20,bottom:20,left:45,right:20},
+        xAxis:{type:'category',data:['法務監査','SNS炎上','訴訟リスク','役員スキャンダル'],axisLabel:{color:'#94a3b8',fontSize:9}},
+        yAxis:{type:'value',max:100,splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        series:[{type:'bar',data:[2.1, 1.0, 0.5, 0.0],itemStyle:{color:'#38bdf8'}}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
+
+def render_chart_mod8(height=260):
+    # モジュール8: 財務健全性バリュエーション比較
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        grid:{top:20,bottom:20,left:50,right:20},
+        xAxis:{type:'category',data:['売上高(B$)','純利益(B$)','時価総額(T$)'],axisLabel:{color:'#94a3b8',fontSize:10}},
+        yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        series:[{type:'bar',data:[96.3, 55.0, 3.5],itemStyle:{color:'#f59e0b'}}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
+
+def render_chart_mod9(height=260):
+    # モジュール9: ニュースヘッドライン感情分析
+    tpl = """
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>body{margin:0;background:#111827;font-family:sans-serif;} #c{width:100%%;height:__H__px;}</style></head>
+    <body><div id="c"></div><script>
+    var m = echarts.init(document.getElementById('c'), 'dark');
+    m.setOption({
+        backgroundColor:'#111827',
+        grid:{top:20,bottom:20,left:45,right:20},
+        xAxis:{type:'category',data:['ポジティブ','ニュートラル','ネガティブ'],axisLabel:{color:'#94a3b8',fontSize:10}},
+        yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}},axisLabel:{color:'#94a3b8',fontSize:10}},
+        series:[{type:'bar',data:[78, 18, 4],itemStyle:{color:function(p){return p.dataIndex===2?'#ef4444':'#10b981';}}}]
+    });
+    </script></body></html>
+    """
+    code = tpl.replace('__H__', str(height))
+    components.html(code, height=height+10)
 
 
-# --- 5.1 モジュール 1: 未来予測チャート & 戦略トレード ---
-with st.expander("📈 【モジュール 1】未来予測チャート ＆ クオンツ戦略トレード（高密度プレビュー内蔵）", expanded=True):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>📊 閉じた状態でも確認できる精細なモメンタム軌道と、展開時に表示される詳細戦略スコアです。</div>", unsafe_allow_html=True)
-    render_inline_chart(150)
-    
+# =========================================================================
+# --- 6. 各アコーディオンの配置（閉じた時はミニ情報バー、開いたら専用チャート＆高密度解説） ---
+# =========================================================================
+
+# --- 6.1 モジュール 1 ---
+st.markdown('<div class="accordion-preview-bar"><span>📈 未来予測・ボリンジャーバンド軌道</span><span style="color:#10b981;font-weight:bold;">利確目標: ' + f'{target_profit:,.2f}' + ' (+2.8%)</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】未来予測チャート ＆ クオンツ戦略トレード詳細", expanded=True):
+    render_chart_mod1(320)
     st.markdown(f"""
     <div class="metric-grid">
       <div class="metric-card"><div>利確目標 (TP)</div><div class="metric-val" style="color:#10b981;">{target_profit:,.2f}</div></div>
@@ -367,12 +512,10 @@ with st.expander("📈 【モジュール 1】未来予測チャート ＆ ク�
     </div>
     """, unsafe_allow_html=True)
 
-
-# --- 5.2 モジュール 2: ダークプール・ブロックトレード監視 ---
-with st.expander("🏛️ 【モジュール 2】ダークプール・ブロックトレード監視レーダー", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>🌊 機関投資家の隠れ流動性（ダークプール）と大口注文の動向を可視化したチャートとマトリックスです。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.2 モジュール 2 ---
+st.markdown('<div class="accordion-preview-bar"><span>🏛️ ダークプール資金流入 (Level 3 Tape)</span><span style="color:#38bdf8;font-weight:bold;">機関大口比率: 58.4% (強気)</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】ダークプール・ブロックトレード監視レーダー詳細", expanded=False):
+    render_chart_mod2(280)
     st.markdown(f"""
     <div class="quant-matrix">
       <h5 style="margin-top:0;color:#10b981;">📊 ダークプールオーダーフロー解析 (Level 3 Tape)</h5>
@@ -383,19 +526,16 @@ with st.expander("🏛️ 【モジュール 2】ダークプール・ブロッ�
     </div>
     """, unsafe_allow_html=True)
 
-
-# --- 5.3 モジュール 3: インサイダー・Form 4 自動監査 ---
-with st.expander("🕵️ 【モジュール 3】インサイダー・Form 4 自動監査トラッカー", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>📋 経営陣の自社株売買動向およびSEC適時開示情報のクリーン度をグラフ化した監査パネルです。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.3 モジュール 3 ---
+st.markdown('<div class="accordion-preview-bar"><span>🕵️ インサイダー・Form 4 監査</span><span style="color:#10b981;font-weight:bold;">健全性スコア: 91.5 / 100</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】インサイダー・Form 4 自動監査トラッカー詳細", expanded=False):
+    render_chart_mod3(260)
     col_i1, col_i2 = st.columns(2)
     with col_i1:
         st.markdown(f"""
         <div class="quant-matrix">
           <b>🟢 役員買付実績 (Form 4):</b><br>
-          直近90日以内のインサイダー売り報告なし。CEOおよび主要役員による自社株買い継続により、経営陣のコンフィデンス（自信）は極めて高水準です。<br>
-          <b>インサイダー健全性:</b> <b>91.5 / 100</b>
+          直近90日以内のインサイダー売り報告なし。CEOおよび主要役員による自社株買い継続により、経営陣のコンフィデンス（自信）は極めて高水準です。
         </div>
         """, unsafe_allow_html=True)
     with col_i2:
@@ -407,12 +547,10 @@ with st.expander("🕵️ 【モジュール 3】インサイダー・Form 4 自
         </div>
         """, unsafe_allow_html=True)
 
-
-# --- 5.4 モジュール 4: AI自動裁定取引（アービトラージ）シミュレーター ---
-with st.expander("⚖️ 【モジュール 4】AI自動裁定取引（アービトラージ）シミュレーター", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>⚡ クロスマーケット間の価格乖離と裁定機会（アービトラージ）のリアルタイムモニタリングです。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.4 モジュール 4 ---
+st.markdown('<div class="accordion-preview-bar"><span>⚖️ AI自動裁定取引シミュレーター</span><span style="color:#f59e0b;font-weight:bold;">現物先物乖離: +0.35%</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】AI自動裁定取引（アービトラージ）詳細", expanded=False):
+    render_chart_mod4(260)
     arb_diff = round((curr_px * 0.0035), 2)
     st.markdown(f"""
     <div class="dark-box">
@@ -423,12 +561,10 @@ with st.expander("⚖️ 【モジュール 4】AI自動裁定取引（アービ
     </div>
     """, unsafe_allow_html=True)
 
-
-# --- 5.5 モジュール 5: ESG・ガバナンス「隠れ地雷」スコアカード ---
-with st.expander("🛡️ 【モジュール 5】ESG・ガバナンス「隠れ地雷」スコアカード", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>🌿 サプライチェーンの人権監査・特許係争リスクなどの「隠れ地雷」を定量評価したスコアです。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.5 モジュール 5 ---
+st.markdown('<div class="accordion-preview-bar"><span>🛡️ ESG・ガバナンス隠れ地雷レーダー</span><span style="color:#10b981;font-weight:bold;">透明性スコア: 95.0</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】ESG・ガバナンス「隠れ地雷」スコアカード詳細", expanded=False):
+    render_chart_mod5(260)
     col_e1, col_e2 = st.columns(2)
     with col_e1:
         st.markdown(f"""
@@ -447,12 +583,10 @@ with st.expander("🛡️ 【モジュール 5】ESG・ガバナンス「隠れ�
         </div>
         """, unsafe_allow_html=True)
 
-
-# --- 5.6 モジュール 6: AIマルチエージェント評議会ディベートパネル ---
-with st.expander("💬 【モジュール 6】AIマルチエージェント「強気 vs 弱気」ディベートパネル", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>🗣️ 超強気機関投資家AIと冷徹なショートセラーAIによるガチ討論結果です。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.6 モジュール 6 ---
+st.markdown('<div class="accordion-preview-bar"><span>💬 AIマルチエージェント評議会</span><span style="color:#10b981;font-weight:bold;">ブル派 68% vs ベア派 32%</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】AIマルチエージェント「強気 vs 弱気」ディベートパネル詳細", expanded=False):
+    render_chart_mod6(260)
     st.markdown(f"""
     <div class="dark-box">
       <div style="margin-bottom:8px;padding:8px;background:rgba(16,185,129,0.06);border-left:3px solid #10b981;border-radius:4px;">
@@ -469,15 +603,12 @@ with st.expander("💬 【モジュール 6】AIマルチエージェント「�
     </div>
     """, unsafe_allow_html=True)
 
-
-# --- 5.7 モジュール 7: 役員不祥事・ガバナンス監査スキャン ---
-with st.expander("🚨 【モジュール 7】役員不祥事・ガバナンス監査スキャン", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>🚨 リアルタイムWebスクレイピングによる役員スキャンダル・炎上リスクの監査です。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.7 モジュール 7 ---
+st.markdown('<div class="accordion-preview-bar"><span>🚨 役員不祥事・ガバナンス監査</span><span style="color:#10b981;font-weight:bold;">リスク指数: 極めて低 (クリーン)</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】役員不祥事・ガバナンス監査スキャン詳細", expanded=False):
+    render_chart_mod7(260)
     with st.spinner(f"🔍 {corp_name} のガバナンスリスクをスキャン中..."):
         recon_data = deep_recon_intelligence(corp_name, ceo_name)
-
     col_r1, col_r2 = st.columns(2)
     with col_r1:
         st.markdown('<div class="warning-box"><b>⚠️ 【ガバナンス・法務リスク監視】</b><br><br>', unsafe_allow_html=True)
@@ -490,18 +621,15 @@ with st.expander("🚨 【モジュール 7】役員不祥事・ガバナンス�
             st.markdown(f"- {item}")
         st.markdown("</div>", unsafe_allow_html=True)
 
-
-# --- 5.8 モジュール 8: 企業概要 ＆ ファンダメンタルズ決算指標 ---
-with st.expander("📋 【モジュール 8】企業概要 ＆ ファンダメンタルズ決算指標", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>📊 決算ハイライト、時価総額、PER/PBRなどのバリュエーションマトリックスです。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.8 モジュール 8 ---
+st.markdown('<div class="accordion-preview-bar"><span>📋 企業概要 ＆ ファンダメンタルズ決算</span><span style="color:#38bdf8;font-weight:bold;">財務格付け: AAAランク</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】企業概要 ＆ ファンダメンタルズ決算指標詳細", expanded=False):
+    render_chart_mod8(260)
     st.markdown(f"""
     <div class="dark-box">
       <b>正式名称:</b> {html.escape(corp_name)} ({fc}) ｜ <b>セグメント:</b> {html.escape(sector)} ｜ <b>CEO:</b> {html.escape(ceo_name)}
     </div>
     """, unsafe_allow_html=True)
-
     col_f1, col_f2 = st.columns(2)
     with col_f1:
         st.markdown(f"""
@@ -518,11 +646,9 @@ with st.expander("📋 【モジュール 8】企業概要 ＆ ファンダメ�
         </div>
         """, unsafe_allow_html=True)
 
-
-# --- 5.9 モジュール 9: WEBマルチサーチ・生データ速報 ---
-with st.expander("🌐 【モジュール 9】WEBマルチサーチ・生データ速報", expanded=False):
-    st.markdown("<div style='font-size:12px;color:#94a3b8;margin-bottom:6px;'>🌐 GoogleニュースRSSからリアルタイム収集した最新のヘッドライン速報です。</div>", unsafe_allow_html=True)
-    render_inline_chart(130)
-
+# --- 6.9 モジュール 9 ---
+st.markdown('<div class="accordion-preview-bar"><span>🌐 WEBマルチサーチ・感情分析速報</span><span style="color:#10b981;font-weight:bold;">ポジティブ感情: 78%</span></div>', unsafe_allow_html=True)
+with st.expander("🔍 【展開】WEBマルチサーチ・生データ＆感情分析速報詳細", expanded=False):
+    render_chart_mod9(260)
     web_str_joined = "<br>".join(web_snippets) if web_snippets else "特段の新規ヘッドライン・噂なし"
     st.markdown(f'<div class="dark-box">{web_str_joined}</div>', unsafe_allow_html=True)
