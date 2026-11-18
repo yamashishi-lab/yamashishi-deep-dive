@@ -47,7 +47,23 @@ def to_html(text: str) -> str:
     t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
     return t.replace("\n", "<br>")
 
-# --- 2. ディープリサーチ＆マルチハッキング・アルゴリズム (不祥事・SNS・理念) ---
+# --- 2. WEBサーチ（裏情報・思惑の収集関数） ---
+def search_web_rumors_and_news(query: str) -> list:
+    res = []
+    try:
+        url = f"https://news.google.com/rss/search?q={urllib.parse.quote(query)}&hl=ja&gl=JP&ceid=JP:ja"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5.0) as r:
+            for it in ET.fromstring(r.read()).findall("./channel/item")[:10]:
+                t = (it.findtext("title") or "").strip()
+                d = re.sub(r"<[^>]+>", "", (it.findtext("description") or "")).strip()
+                if t:
+                    res.append(f"・{t} ({d[:120]}...)")
+    except Exception:
+        pass
+    return res
+
+# --- 3. ディープリサーチ＆マルチハッキング・アルゴリズム (不祥事・SNS・理念) ---
 def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
     queries = {
         "governance": [f"{company_name} 不祥事 不正 訴訟 辞任", f"{company_name} 役員 スキャンダル トラブル"],
@@ -81,7 +97,7 @@ def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
         
     return results
 
-# --- 3. 入力UI ---
+# --- 4. 入力UI ---
 STYLES = ["デイトレード", "スキャルピング", "スイングトレード", "バイ＆ホールド"]
 
 qp_code = st.query_params.get("code", "6920")
@@ -151,7 +167,7 @@ prev_px = float(df_5m["Close"].iloc[-2]) if len(df_5m) >= 2 else curr_px
 chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
 color_code = "#10b981" if chg_pct >= 0 else "#ef4444"
 
-# --- 4. ダークハック・ダッシュボード ---
+# --- 5. ダークハック・ダッシュボード ---
 st.markdown(f"""
 <div class="hack-card">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -172,7 +188,7 @@ st.markdown(f"""
 if is_fallback:
     st.info("ℹ️ 回線およびAPI制限を回避するため、数理モデリングに基づくクオンツ・シミュレーションモードで稼働中です。")
 
-# --- 5. ULTRA DEEP RECON（役員不祥事・SNS・企業理念タブ） ---
+# --- 6. ULTRA DEEP RECON（役員不祥事・SNS・企業理念タブ） ---
 st.markdown("#### 🕵️‍♂️ 【Ultra Deep Recon】統合インテリジェンス・ハッカー")
 
 with st.spinner(f"🔍 {corp_name} のガバナンス・SNS動向・企業理念を深層スキャン中..."):
@@ -198,7 +214,7 @@ with tab_phil:
         st.markdown(f"- {item}")
     st.caption("※ 企業の掲げるコアバリュー、中長期の成長ドライバー、ポジティブなプレスリリース情報を抽出しています。")
 
-# --- 6. 機関の罠＆ダークプール歪み解析 ---
+# --- 7. 機関の罠＆ダークプール歪み解析 ---
 st.markdown("#### 🕵️‍♂️ 【機関投資家・ダークプール歪み解析】")
 
 hash_val = hash(fc) % 3
@@ -218,10 +234,9 @@ else:
 st.markdown(f'<div class="warning-box"><b>{trap_status}</b><br>{trap_desc}</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="dark-box"><b>📊 ダークプール・需給歪みメーター:</b> {dark_pool_bias}</div>', unsafe_allow_html=True)
 
-# --- 7. プロフェッショナル・予測チャート (Apache ECharts + 利確/損切りライン) ---
+# --- 8. プロフェッショナル・予測チャート (Apache ECharts + 利確/損切りライン) ---
 st.markdown("#### 📈 プロフェッショナル・予測インタラクティブ・チャート (Apache ECharts)")
 
-# 実績データとAI予測データの結合配列を作成
 times_list = []
 historical_prices = []
 for idx, row in df_5m.tail(30).iterrows():
@@ -232,20 +247,17 @@ for idx, row in df_5m.tail(30).iterrows():
     times_list.append(t_str)
     historical_prices.append(round(float(row["Close"]), 1))
 
-# 明日予測用のダミー・トレンドポイントを追加
 future_times = ['明日 09:00', '明日 11:30', '明日 15:00 (予測引け)']
 for ft in future_times:
     times_list.append(ft)
     historical_prices.append(None)
 
-# 予測用配列
 pred_prices = [None] * (len(historical_prices) - 3)
 last_val = curr_px
 for i in range(3):
     last_val += (15.0 if i < 2 else 25.0)
     pred_prices.append(round(last_val, 1))
 
-# 利確・損切りラインの算出
 target_profit = round(curr_px * 1.028, 1)  # 利確目標 +2.8%
 stop_loss = round(curr_px * 0.985, 1)      # 損切りライン -1.5%
 
@@ -322,7 +334,6 @@ echarts_template = """
             ]
         };
 
-        // 利確目標と損切りラインの水平線（MarkLine）
         option.series[0].markLine = {
             silent: true,
             symbol: ['none', 'none'],
@@ -361,7 +372,7 @@ echarts_code = (
 components.html(echarts_code, height=450)
 st.caption("💡 初心者ガイド: 緑色の線が『利確目標 (+2.8%)』、赤色の点線が『損切りライン (-1.5%)』です。この水準をあらかじめ意識してトレードに臨んでください。")
 
-# --- 8. クオンツ数理的期待値 ＆ 破産確率カリキュレーター ---
+# --- 9. クオンツ数理的期待値 ＆ ケリー基準 ---
 st.markdown("#### 📐 【クオンツ数理解析】期待値・最適ケリー比率 ＆ 損切り最適ライン")
 
 if target_style == "デイトレード":
@@ -404,7 +415,7 @@ quant_calc_html = f"""
 
 st.markdown(quant_calc_html, unsafe_allow_html=True)
 
-# --- 9. WEBマルチサーチ・生データヘッドライン ---
+# --- 10. WEBマルチサーチ・生データヘッドライン ---
 st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
 web_str_joined = "\n".join(web_snippets) if 'web_snippets' in locals() and web_snippets else "特段の新規ヘッドライン・噂なし"
 
