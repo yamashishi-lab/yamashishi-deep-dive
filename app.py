@@ -6,9 +6,10 @@ import os, re, time
 import urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 import html
+import altair as alt
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [SIMPLE HACK]",
+    page_title="YAMASHISHI DEEP DIVE [CLEAN CHART]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -16,20 +17,19 @@ st.set_page_config(
 
 # --- 1. スタイリング・デザイン ---
 def inject_css():
-    # CSS内の波括弧は二重にしてエスケープする
     css = """
     @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
-    html,body{{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;}}
-    .stApp,[data-testid="stAppViewContainer"],[data-testid="stHeader"]{{background-color:#03050a!important;color:#e2e8f0!important;}}
-    .stApp p,.stApp label,.stApp span,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5{{color:#e2e8f0;}}
-    .stApp input,.stApp textarea{{color:#f8fafc!important;background-color:#0f172a!important;}}
-    .stApp [data-baseweb="select"] *{{color:#f8fafc!important;}}
-    .stApp [data-baseweb="select"] > div{{background-color:#0f172a!important;}}
-    .brand-luxury{{font-family:'Cinzel',serif!important;font-size:24px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,#f8fafc 0%,#38bdf8 30%,#f43f5e 70%,#a855f7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}}
-    .glass-header{{background:radial-gradient(circle at top right,rgba(244,63,94,0.12),transparent 60%),linear-gradient(145deg,#0f172a 0%,#050811 100%);border:1px solid rgba(244,63,94,0.25);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 12px 32px rgba(0,0,0,0.6);}}
-    .rank-card{{background:linear-gradient(180deg,#0f172a 0%,#070b14 100%)!important;color:#f8fafc!important;border-radius:16px;padding:18px;margin-bottom:18px;border:1px solid rgba(148,163,184,0.22);border-left:5px solid #f43f5e;}}
-    .fact-box{{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.35);border-left:4px solid #10b981;padding:12px 14px;border-radius:10px;margin-bottom:12px;font-size:12.5px;line-height:1.6;color:#d1fae5;}}
-    .pill-badge{{font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid rgba(148,163,184,0.3);display:inline-block;margin-right:4px;font-weight:700;}}
+    html,body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;}
+    .stApp,[data-testid="stAppViewContainer"],[data-testid="stHeader"]{background-color:#03050a!important;color:#e2e8f0!important;}
+    .stApp p,.stApp label,.stApp span,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5{color:#e2e8f0;}
+    .stApp input,.stApp textarea{color:#f8fafc!important;background-color:#0f172a!important;}
+    .stApp [data-baseweb="select"] *{color:#f8fafc!important;}
+    .stApp [data-baseweb="select"] > div{background-color:#0f172a!important;}
+    .brand-luxury{font-family:'Cinzel',serif!important;font-size:24px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,#f8fafc 0%,#38bdf8 30%,#f43f5e 70%,#a855f7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .glass-header{background:radial-gradient(circle at top right,rgba(244,63,94,0.12),transparent 60%),linear-gradient(145deg,#0f172a 0%,#050811 100%);border:1px solid rgba(244,63,94,0.25);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 12px 32px rgba(0,0,0,0.6);}
+    .rank-card{background:linear-gradient(180deg,#0f172a 0%,#070b14 100%)!important;color:#f8fafc!important;border-radius:16px;padding:18px;margin-bottom:18px;border:1px solid rgba(148,163,184,0.22);border-left:5px solid #f43f5e;}
+    .fact-box{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.35);border-left:4px solid #10b981;padding:12px 14px;border-radius:10px;margin-bottom:12px;font-size:12.5px;line-height:1.6;color:#d1fae5;}
+    .pill-badge{font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid rgba(148,163,184,0.3);display:inline-block;margin-right:4px;font-weight:700;}
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
@@ -69,8 +69,8 @@ qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
 st.markdown(
-    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [SIMPLE HACK]</div>'
-    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ yfinance株価取得 ＆ WEBマルチサーチ対応版</div></div>',
+    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [CLEAN CHART]</div>'
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ 高精度カスタムチャート ＆ WEBサーチ対応版</div></div>',
     unsafe_allow_html=True
 )
 
@@ -94,7 +94,7 @@ if re.match(r"^[0-9]{3}[0-9A-Z]$", fc):
 def load_deep_stock_data(code: str):
     try:
         tkr = yf.Ticker(code)
-        df_5m = tkr.history(period="1mo", interval="5m")
+        df_5m = tkr.history(period="1.5mo", interval="5m")
         df_1d = tkr.history(period="1y", interval="1d")
         try:
             info = tkr.info
@@ -121,12 +121,11 @@ chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
 color_code = "#10b981" if chg_pct >= 0 else "#ef4444"
 
 # --- 4. ダッシュボード ---
-# f文字列の中のHTMLインラインスタイルにある { と } をすべて {{ と }} に変更しました
 st.markdown(f"""
 <div class="rank-card">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
     <div>
-      <span class="pill-badge" style="background:#f43f5e;color:#fff;font-weight:800;">🔥 ハッキング中 (Simple)</span>
+      <span class="pill-badge" style="background:#f43f5e;color:#fff;font-weight:800;">🔥 ハッキング中</span>
       <span class="pill-badge" style="background:rgba(56,189,248,0.2);color:#38bdf8;">{html.escape(sector)}</span>
       <div style="font-size:22px;font-weight:800;color:#f8fafc;margin-top:6px;">{html.escape(corp_name)} <span style="font-size:13px;color:#f43f5e;">[{html.escape(fc)}]</span></div>
     </div>
@@ -139,10 +138,61 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("#### 📈 直近5分足プライスアクション ＆ モメンタム")
-st.line_chart(df_5m["Close"])
+# --- 5. 美しいカスタムインタラクティブチャート (Altair) ---
+st.markdown("#### 📈 5分足プライスアクション・ハイパフォーマンスチャート")
 
-# --- 5. WEBサーチ結果の表示 ---
+# Altair用にデータを整形（インデックスを列に戻す）
+df_chart = df_5m.reset_index()
+# タイムゾーンを日本時間等で見やすく文字列化、あるいはそのままDatetime
+if "Datetime" in df_chart.columns:
+    time_col = "Datetime"
+elif "Date" in df_chart.columns:
+    time_col = "Date"
+else:
+    time_col = df_chart.columns[0]
+
+# イントラデイの価格推移を美しくグラデーションエリア付きラインで描画
+base_chart = alt.Chart(df_chart).mark_line(
+    color="#f43f5e",
+    strokeWidth=2.2
+).encode(
+    x=alt.X(f'{time_col}:T', title='日時', axis=alt.Axis(grid=False, labelColor="#94a3b8", titleColor="#94a3b8")),
+    y=alt.Y('Close:Q', title='株価 (円)', scale=alt.Scale(zero=False), axis=alt.Axis(grid=True, gridColor="#1e293b", labelColor="#94a3b8", titleColor="#94a3b8")),
+    tooltip=[
+        alt.Tooltip(f'{time_col}:T', title='日時'),
+        alt.Tooltip('Close:Q', title='終値', format=',.1f')
+    ]
+)
+
+# グラデーション効果の追加（エリア）
+area_chart = alt.Chart(df_chart).mark_area(
+    line=False,
+    color=alt.Gradient(
+        gradient='linear',
+        stops=[
+            alt.GradientStop(color='rgba(244, 63, 94, 0.35)', offset=0),
+            alt.GradientStop(color='rgba(244, 63, 94, 0.0)', offset=1)
+        ],
+        x1=1, x2=1, y1=1, y2=0
+    )
+).encode(
+    x=f'{time_col}:T',
+    y='Close:Q'
+)
+
+# レイヤー合成・インタラクティブ設定（ホバー・ズーム対応）
+final_chart = (area_chart + base_chart).interactive().properties(
+    height=320,
+    background='#03050a'
+).configure_view(
+    stroke=None
+).configure_axis(
+    domainColor='#334155'
+)
+
+st.altair_chart(final_chart, use_container_width=True)
+
+# --- 6. WEBサーチ結果の表示 ---
 st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
 web_str_joined = "\n".join(web_snippets) if web_snippets else "特段の新規ヘッドライン・噂なし"
 
