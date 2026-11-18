@@ -17,82 +17,88 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 1. スタイリング・デザイン（漆黒とサイバー・クオンツUI） ---
+# --- 1. スタイリング・デザイン（洗練されたモダン・クオンツUI） ---
 def inject_css():
     css = """
-    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
     html,body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;}
-    .stApp,[data-testid="stAppViewContainer"],[data-testid="stHeader"]{background-color:#020408!important;color:#e2e8f0!important;}
-    .stApp p,.stApp label,.stApp span,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5{color:#e2e8f0;}
-    .stApp input,.stApp textarea{color:#f8fafc!important;background-color:#090d16!important;border:1px solid rgba(56,189,248,0.3)!important;}
-    .stApp [data-baseweb="select"] *{color:#f8fafc!important;}
-    .stApp [data-baseweb="select"] > div{background-color:#090d16!important;border:1px solid rgba(56,189,248,0.3)!important;}
+    .stApp,[data-testid="stAppViewContainer"],[data-testid="stHeader"]{background-color:#0b0f19!important;color:#f1f5f9!important;}
+    .stApp p,.stApp label,.stApp span,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5{color:#f1f5f9;}
+    .stApp input,.stApp textarea{color:#ffffff!important;background-color:#131b2e!important;border:1px solid rgba(148,163,184,0.2)!important;border-radius:8px!important;}
+    .stApp [data-baseweb="select"] *{color:#ffffff!important;}
+    .stApp [data-baseweb="select"] > div{background-color:#131b2e!important;border:1px solid rgba(148,163,184,0.2)!important;border-radius:8px!important;}
     
-    /* 🌟 ブランド名・タイトルを極上のラグジュアリーサイバー風に */
-    .brand-luxury{
-        font-family:'Cinzel',serif!important;
-        font-size:26px;
-        font-weight:800;
-        letter-spacing:3px;
-        background:linear-gradient(135deg,#ffffff 0%,#38bdf8 40%,#f43f5e 70%,#a855f7 100%);
-        -webkit-background-clip:text;
-        -webkit-text-fill-color:transparent;
-        text-shadow: 0 0 30px rgba(244,63,94,0.3);
+    /* 🌟 グローバル・ヘッダー */
+    .brand-title{
+        font-family:'Plus Jakarta Sans',sans-serif;
+        font-size:20px;
+        font-weight:700;
+        letter-spacing:1px;
+        color:#f8fafc;
     }
-    
     .glass-header{
-        background:radial-gradient(circle at top right,rgba(244,63,94,0.2),transparent 60%),linear-gradient(145deg,#090d16 0%,#020408 100%);
-        border:1px solid rgba(244,63,94,0.5);
-        border-radius:18px;
-        padding:22px;
-        margin-bottom:20px;
-        box-shadow:0 12px 40px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);
+        background:#111827;
+        border-bottom:1px solid rgba(255,255,255,0.08);
+        padding:18px 24px;
+        margin-bottom:24px;
+        border-radius:0 0 16px 16px;
     }
 
-    /* 🚀 会社名カードを近未来風の超カッコいいサイバーパネルに進化 */
-    .cyber-company-card {
-        background: linear-gradient(135deg, rgba(11,17,32,0.95) 0%, rgba(4,7,14,0.95) 100%);
-        border: 1px solid rgba(56, 189, 248, 0.4);
-        border-left: 6px solid #f43f5e;
-        border-radius: 18px;
+    /* 💎 洗練されたミニマル・ラグジュアリーな企業情報カード */
+    .clean-company-card {
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
         padding: 24px;
-        margin-bottom: 22px;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 15px rgba(56, 189, 248, 0.05);
-        position: relative;
-        overflow: hidden;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
-    .cyber-company-card::before {
-        content: "";
-        position: absolute;
-        top: 0; right: 0; width: 150px; height: 150px;
-        background: radial-gradient(circle, rgba(244,63,94,0.15) 0%, transparent 70%);
-        pointer-events: none;
-    }
-    .company-title {
-        font-family: 'Cinzel', serif;
-        font-size: 28px;
-        font-weight: 800;
-        letter-spacing: 1px;
-        color: #f8fafc;
-        text-shadow: 0 0 20px rgba(56,189,248,0.4);
-    }
-    .company-code-badge {
-        font-family: 'JetBrains Mono', monospace;
-        background: linear-gradient(90deg, #f43f5e, #a855f7);
-        color: #ffffff;
-        font-size: 13px;
+    .company-main-name {
+        font-size: 26px;
         font-weight: 700;
-        padding: 4px 12px;
+        color: #ffffff;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .company-code-pill {
+        font-family: 'JetBrains Mono', monospace;
+        background: rgba(56, 189, 248, 0.1);
+        color: #38bdf8;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 3px 10px;
         border-radius: 6px;
-        box-shadow: 0 0 10px rgba(244,63,94,0.5);
-        display: inline-block;
-        margin-left: 10px;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .company-meta-info {
+        font-size: 13px;
+        color: #94a3b8;
+        margin-top: 8px;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    .price-display-box {
+        text-align: right;
+    }
+    .price-val {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 26px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .price-chg {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        font-weight: 600;
     }
 
-    .dark-box{background:rgba(15,23,42,0.85);border:1px solid rgba(56,189,248,0.3);border-left:4px solid #38bdf8;padding:16px;border-radius:12px;margin-bottom:14px;font-size:13px;line-height:1.7;color:#e0f2fe;}
-    .warning-box{background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.4);border-left:4px solid #f43f5e;padding:16px;border-radius:12px;margin-bottom:14px;font-size:13px;line-height:1.7;color:#ffe4e6;}
-    .quant-matrix{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-left:4px solid #10b981;padding:18px;border-radius:12px;margin-bottom:14px;font-size:13.5px;line-height:1.8;color:#d1fae5;}
-    .pill-badge{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);display:inline-block;margin-right:6px;font-weight:700;}
+    .dark-box{background:#131b2e;border:1px solid rgba(255,255,255,0.06);padding:18px;border-radius:10px;margin-bottom:14px;font-size:13px;line-height:1.7;color:#cbd5e1;}
+    .warning-box{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);padding:18px;border-radius:10px;margin-bottom:14px;font-size:13px;line-height:1.7;color:#fca5a5;}
+    .quant-matrix{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);padding:18px;border-radius:10px;margin-bottom:14px;font-size:13px;line-height:1.8;color:#a7f3d0;}
+    .sub-pill {font-size:11px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.06);color:#cbd5e1;font-weight:500;}
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
@@ -110,7 +116,7 @@ def to_html(text: str) -> str:
 def search_web_rumors_and_news(query: str) -> list:
     res = []
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
     }
     try:
@@ -125,9 +131,9 @@ def search_web_rumors_and_news(query: str) -> list:
                 d = re.sub(r"<[^>]+>", "", (it.findtext("description") or "")).strip()
                 pub_date = (it.findtext("pubDate") or "").strip()
                 if t:
-                    res.append(f"・<b>{t}</b> <span style='color:#94a3b8;font-size:11px;'>({pub_date[:16]})</span><br>{d[:120]}...")
+                    res.append(f"・<b>{t}</b> <span style='color:#64748b;font-size:11px;'>({pub_date[:16]})</span><br>{d[:120]}...")
     except Exception:
-        res.append(f"⚠️ リアルタイムRSSフィードの取得制限を検知しました。対象銘柄のAI自動生成モニタリングを継続します。")
+        res.append(f"⚠️ リアルタイムRSSフィードの取得制限を検知しました。対象銘柄のAIモニタリングを継続します。")
     return res
 
 def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
@@ -177,8 +183,8 @@ def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
 
 # --- 3. ヘッダー ＆ 入力コントロール ---
 st.markdown(
-    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [QUANTUM HACK]</div>'
-    '<div style="font-size:12px;color:#cbd5e1;margin-top:6px;">1銘柄極限ハッキング ｜ 役員・不祥事ディープスキャン・決算ファンダメンタルズエンジン</div></div>',
+    '<div class="glass-header"><div class="brand-title">YAMASHISHI DEEP DIVE <span style="color:#38bdf8;font-size:12px;font-weight:600;margin-left:8px;">[QUANTUM HACK]</span></div>'
+    '<div style="font-size:12px;color:#94a3b8;margin-top:4px;">1銘柄極限リサーチ ｜ 役員ガバナンス監査・ファンダメンタルズ解析エンジン</div></div>',
     unsafe_allow_html=True
 )
 
@@ -238,47 +244,45 @@ def load_deep_stock_data(code: str):
         }
         return df_5m, None, info, True
 
-with st.spinner(f"📡 【{fc}】のガバナンス・ニュース・財務データをスキャン中..."):
+with st.spinner(f"📡 【{fc}】のデータをスキャン中..."):
     df_5m, df_1d, info, is_fallback = load_deep_stock_data(fc)
     web_snippets = search_web_rumors_and_news(f"{fc} 株価 決算 ニュース")
 
 corp_name = info.get("longName") or info.get("shortName") or fc
 sector = info.get("sector") or "グロース/テクノロジー"
-ceo_name = info.get("ceo") or ("Jensen Huang" if "NVDA" in fc else "")
+ceo_name = info.get("ceo") or ("Jensen Huang" if "NVDA" in fc else "非公開 / 要確認")
 curr_px = float(df_5m["Close"].iloc[-1])
 prev_px = float(df_5m["Close"].iloc[-2]) if len(df_5m) >= 2 else curr_px
 chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
 color_code = "#10b981" if chg_pct >= 0 else "#ef4444"
 
 # =========================================================================
-# --- 4. 【超カッコいいサイバー企業カード】描画セクション ---
+# --- 4. 【ミニマル＆クリーン】洗練された企業情報カード ---
 # =========================================================================
 st.markdown(f"""
-<div class="cyber-company-card">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:15px;">
+<div class="clean-company-card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;">
     <div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span class="pill-badge" style="background:rgba(244,63,94,0.2);color:#f43f5e;border:1px solid rgba(244,63,94,0.4);">🔥 ターゲットハック完了</span>
-        <span class="pill-badge" style="background:rgba(56,189,248,0.2);color:#38bdf8;border:1px solid rgba(56,189,248,0.4);">{html.escape(sector)}</span>
+      <div class="company-main-name">
+        {html.escape(corp_name)} 
+        <span class="company-code-pill">{html.escape(fc)}</span>
       </div>
-      <div class="company-title">
-        {html.escape(corp_name)} <span class="company-code-badge">{html.escape(fc)}</span>
-      </div>
-      <div style="font-size:12.5px;color:#94a3b8;margin-top:6px;letter-spacing:0.5px;">
-        👤 <b>最高経営責任者 (CEO):</b> {html.escape(ceo_name) if ceo_name else "開示情報または特定コード圏外"}
+      <div class="company-meta-info">
+        <span>🏢 セグメント：<b>{html.escape(sector)}</b></span>
+        <span>👤 最高経営責任者 (CEO)：<b>{html.escape(ceo_name)}</b></span>
       </div>
     </div>
-    <div style="text-align:right;background:rgba(2,4,8,0.6);padding:12px 18px;border-radius:12px;border:1px solid rgba(148,163,184,0.2);">
-      <div style="font-size:11px;color:#94a3b8;letter-spacing:1px;">REALTIME ESTIMATED PRICE</div>
-      <div style="font-size:24px;font-weight:900;color:#f8fafc;font-family:'JetBrains Mono',monospace;">{curr_px:,.2f} USD/JPY</div>
-      <div style="font-size:13.5px;font-weight:700;color:{color_code};">{chg_pct:+.2f}% (24h)</div>
+    <div class="price-display-box">
+      <div style="font-size:11px;color:#64748b;font-weight:600;letter-spacing:0.5px;">LIVE ESTIMATED PRICE</div>
+      <div class="price-val">{curr_px:,.2f} <span style="font-size:14px;color:#94a3b8;">USD/JPY</span></div>
+      <div class="price-chg" style="color:{color_code};">{chg_pct:+.2f}% (24h)</div>
     </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 if is_fallback:
-    st.info("ℹ️ 回線およびAPI制限を回避するため、数理モデリングに基づくクオンツ・シミュレーションモードで稼働中です。")
+    st.info("ℹ️ 回線およびAPI制限を回避するため、数理モデリングに基づくシミュレーションモードで稼働中です。")
 
 # =========================================================================
 # --- 5. タブによる情報の完全整理 ---
@@ -325,10 +329,10 @@ with main_tab1:
         <meta charset="UTF-8">
         <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
         <style>
-            body { margin: 0; background-color: #020408; font-family: 'Plus Jakarta Sans', sans-serif; }
+            body { margin: 0; background-color: #0b0f19; font-family: 'Plus Jakarta Sans', sans-serif; }
             #chart-container {
                 width: 100%; height: 420px; border-radius: 12px; overflow: hidden;
-                border: 1px solid rgba(56, 189, 248, 0.4); box-shadow: 0 12px 36px rgba(0,0,0,0.8);
+                border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.4);
             }
         </style>
     </head>
@@ -339,12 +343,12 @@ with main_tab1:
             var myChart = echarts.init(chartDom, 'dark');
             
             var option = {
-                backgroundColor: '#04070e',
+                backgroundColor: '#111827',
                 tooltip: { show: false },
                 legend: {
                     data: ['実績チャート', 'AI予測トレンド'],
                     top: 10,
-                    textStyle: { color: '#cbd5e1', fontSize: 11, fontWeight: 'bold' }
+                    textStyle: { color: '#94a3b8', fontSize: 11, fontWeight: '600' }
                 },
                 grid: { top: 50, bottom: 40, left: 65, right: 45 },
                 xAxis: {
@@ -357,13 +361,13 @@ with main_tab1:
                 yAxis: {
                     type: 'value',
                     scale: true,
-                    splitLine: { lineStyle: { color: 'rgba(30, 41, 59, 0.4)', type: 'dotted' } },
+                    splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.05)', type: 'dotted' } },
                     axisLine: { lineStyle: { color: '#334155' } },
                     axisLabel: { color: '#94a3b8', fontSize: 10 }
                 },
                 dataZoom: [
                     { type: 'inside', start: 10, end: 100 },
-                    { type: 'slider', show: true, backgroundColor: 'rgba(9, 13, 22, 0.8)', fillerColor: 'rgba(56, 189, 248, 0.25)', height: 16, bottom: 6 }
+                    { type: 'slider', show: true, backgroundColor: '#131b2e', fillerColor: 'rgba(56, 189, 248, 0.25)', height: 16, bottom: 6 }
                 ],
                 series: [
                     {
@@ -371,10 +375,10 @@ with main_tab1:
                         type: 'line',
                         smooth: 0.2,
                         symbol: 'none',
-                        lineStyle: { color: '#38bdf8', width: 2.8 },
+                        lineStyle: { color: '#38bdf8', width: 2.5 },
                         areaStyle: {
                             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                { offset: 0, color: 'rgba(56, 189, 248, 0.35)' },
+                                { offset: 0, color: 'rgba(56, 189, 248, 0.25)' },
                                 { offset: 1, color: 'rgba(56, 189, 248, 0.0)' }
                             ])
                         },
@@ -385,8 +389,8 @@ with main_tab1:
                         type: 'line',
                         smooth: 0.2,
                         symbol: 'circle',
-                        symbolSize: 7,
-                        lineStyle: { color: '#f43f5e', width: 3, type: 'dashed' },
+                        symbolSize: 6,
+                        lineStyle: { color: '#f43f5e', width: 2.5, type: 'dashed' },
                         data: __PRED_DATA__
                     }
                 ]
@@ -400,13 +404,13 @@ with main_tab1:
                         yAxis: __TARGET_PROFIT__,
                         name: '利確目標',
                         label: { formatter: '🎯 利確目標: '+ __TARGET_PROFIT__ +' (+2.8%)', position: 'end', color: '#10b981', fontWeight: 'bold', fontSize: 11 },
-                        lineStyle: { color: '#10b981', type: 'solid', width: 2.2 }
+                        lineStyle: { color: '#10b981', type: 'solid', width: 2 }
                     },
                     {
                         yAxis: __STOP_LOSS__,
                         name: '損切りライン',
                         label: { formatter: '🛡️ 損切り: '+ __STOP_LOSS__ +' (-1.5%)', position: 'end', color: '#ef4444', fontWeight: 'bold', fontSize: 11 },
-                        lineStyle: { color: '#ef4444', type: 'dashed', width: 2.2 }
+                        lineStyle: { color: '#ef4444', type: 'dashed', width: 2 }
                     }
                 ]
             };
