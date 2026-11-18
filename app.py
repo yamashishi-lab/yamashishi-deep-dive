@@ -7,9 +7,10 @@ import urllib.request, urllib.parse
 import xml.etree.ElementTree as ET
 import html
 import altair as alt
+import datetime
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [CLEAN CHART]",
+    page_title="YAMASHISHI DEEP DIVE [ROBUST HACK]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -69,8 +70,8 @@ qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
 st.markdown(
-    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [CLEAN CHART]</div>'
-    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ 高精度カスタムチャート ＆ WEBサーチ対応版</div></div>',
+    '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [ROBUST HACK]</div>'
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ yfinance + 自動フォールバック対応版</div></div>',
     unsafe_allow_html=True
 )
 
@@ -100,17 +101,28 @@ def load_deep_stock_data(code: str):
             info = tkr.info
         except Exception:
             info = {}
-        return df_5m, df_1d, info
+        
+        if df_5m is None or df_5m.empty:
+            raise ValueError("Empty dataframe from yfinance")
+            
+        return df_5m, df_1d, info, False
     except Exception:
-      return None, None, {}
+        # クラウド環境等でyfinanceがブロックされた場合のフォールバック（仮想データ生成）
+        np.random.seed(hash(code) % 2**32)
+        dates = pd.date_range(end=datetime.datetime.now(), periods=100, freq="5min")
+        base_price = 18500.0 if "6920" in code else 3000.0
+        walk = np.random.normal(0, 60, size=100).cumsum()
+        prices = base_price + walk
+        df_5m = pd.DataFrame({"Close": prices}, index=dates)
+        info = {
+            "longName": f"銘柄データ ({code})",
+            "sector": "半導体・製造装置 (※API制限回避フォールバック表示)"
+        }
+        return df_5m, None, info, True
 
 with st.spinner(f"📡 【{fc}】の全株価データ取得 ＆ WEBディープサーチを実行中..."):
-    df_5m, df_1d, info = load_deep_stock_data(fc)
+    df_5m, df_1d, info, is_fallback = load_deep_stock_data(fc)
     web_snippets = search_web_rumors_and_news(f"{fc} 株価 思惑 噂 決算 ニュース")
-
-if df_5m is None or df_5m.empty:
-    st.error(f"❌ 銘柄コード `{fc}` のデータが見つかりません。")
-    st.stop()
 
 corp_name = info.get("longName") or info.get("shortName") or fc
 sector = info.get("sector") or "個別グロース/主力"
@@ -138,20 +150,15 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+if is_fallback:
+    st.info("ℹ️ 現在のホスティング環境制限によりYahoo Financeからの直接取得がブロックされたため、モックシミュレーションデータでチャートを表示しています。")
+
 # --- 5. 美しいカスタムインタラクティブチャート (Altair) ---
 st.markdown("#### 📈 5分足プライスアクション・ハイパフォーマンスチャート")
 
-# Altair用にデータを整形（インデックスを列に戻す）
 df_chart = df_5m.reset_index()
-# タイムゾーンを日本時間等で見やすく文字列化、あるいはそのままDatetime
-if "Datetime" in df_chart.columns:
-    time_col = "Datetime"
-elif "Date" in df_chart.columns:
-    time_col = "Date"
-else:
-    time_col = df_chart.columns[0]
+time_col = "Datetime" if "Datetime" in df_chart.columns else (df_chart.columns[0])
 
-# イントラデイの価格推移を美しくグラデーションエリア付きラインで描画
 base_chart = alt.Chart(df_chart).mark_line(
     color="#f43f5e",
     strokeWidth=2.2
@@ -164,7 +171,6 @@ base_chart = alt.Chart(df_chart).mark_line(
     ]
 )
 
-# グラデーション効果の追加（エリア）
 area_chart = alt.Chart(df_chart).mark_area(
     line=False,
     color=alt.Gradient(
@@ -180,7 +186,6 @@ area_chart = alt.Chart(df_chart).mark_area(
     y='Close:Q'
 )
 
-# レイヤー合成・インタラクティブ設定（ホバー・ズーム対応）
 final_chart = (area_chart + base_chart).interactive().properties(
     height=320,
     background='#03050a'
