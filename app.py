@@ -16,19 +16,20 @@ st.set_page_config(
 
 # --- 1. スタイリング・デザイン ---
 def inject_css():
+    # CSS内の波括弧は二重にしてエスケープする
     css = """
     @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
-    html,body{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;}
-    .stApp,[data-testid="stAppViewContainer"],[data-testid="stHeader"]{background-color:#03050a!important;color:#e2e8f0!important;}
-    .stApp p,.stApp label,.stApp span,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5{color:#e2e8f0;}
-    .stApp input,.stApp textarea{color:#f8fafc!important;background-color:#0f172a!important;}
-    .stApp [data-baseweb="select"] *{color:#f8fafc!important;}
-    .stApp [data-baseweb="select"] > div{background-color:#0f172a!important;}
-    .brand-luxury{font-family:'Cinzel',serif!important;font-size:24px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,#f8fafc 0%,#38bdf8 30%,#f43f5e 70%,#a855f7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-    .glass-header{background:radial-gradient(circle at top right,rgba(244,63,94,0.12),transparent 60%),linear-gradient(145deg,#0f172a 0%,#050811 100%);border:1px solid rgba(244,63,94,0.25);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 12px 32px rgba(0,0,0,0.6);}
-    .rank-card{background:linear-gradient(180deg,#0f172a 0%,#070b14 100%)!important;color:#f8fafc!important;border-radius:16px;padding:18px;margin-bottom:18px;border:1px solid rgba(148,163,184,0.22);border-left:5px solid #f43f5e;}
-    .fact-box{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.35);border-left:4px solid #10b981;padding:12px 14px;border-radius:10px;margin-bottom:12px;font-size:12.5px;line-height:1.6;color:#d1fae5;}
-    .pill-badge{font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid rgba(148,163,184,0.3);display:inline-block;margin-right:4px;font-weight:700;}
+    html,body{{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;}}
+    .stApp,[data-testid="stAppViewContainer"],[data-testid="stHeader"]{{background-color:#03050a!important;color:#e2e8f0!important;}}
+    .stApp p,.stApp label,.stApp span,.stApp li,.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp h5{{color:#e2e8f0;}}
+    .stApp input,.stApp textarea{{color:#f8fafc!important;background-color:#0f172a!important;}}
+    .stApp [data-baseweb="select"] *{{color:#f8fafc!important;}}
+    .stApp [data-baseweb="select"] > div{{background-color:#0f172a!important;}}
+    .brand-luxury{{font-family:'Cinzel',serif!important;font-size:24px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,#f8fafc 0%,#38bdf8 30%,#f43f5e 70%,#a855f7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}}
+    .glass-header{{background:radial-gradient(circle at top right,rgba(244,63,94,0.12),transparent 60%),linear-gradient(145deg,#0f172a 0%,#050811 100%);border:1px solid rgba(244,63,94,0.25);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 12px 32px rgba(0,0,0,0.6);}}
+    .rank-card{{background:linear-gradient(180deg,#0f172a 0%,#070b14 100%)!important;color:#f8fafc!important;border-radius:16px;padding:18px;margin-bottom:18px;border:1px solid rgba(148,163,184,0.22);border-left:5px solid #f43f5e;}}
+    .fact-box{{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.35);border-left:4px solid #10b981;padding:12px 14px;border-radius:10px;margin-bottom:12px;font-size:12.5px;line-height:1.6;color:#d1fae5;}}
+    .pill-badge{{font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid rgba(148,163,184,0.3);display:inline-block;margin-right:4px;font-weight:700;}}
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
@@ -117,11 +118,32 @@ curr_px = float(df_5m["Close"].iloc[-1])
 prev_px = float(df_5m["Close"].iloc[-2]) if len(df_5m) >= 2 else curr_px
 chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
 
+color_code = "#10b981" if chg_pct >= 0 else "#ef4444"
+
 # --- 4. ダッシュボード ---
+# f文字列の中のHTMLインラインスタイルにある { と } をすべて {{ と }} に変更しました
 st.markdown(f"""
 <div class="rank-card">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
     <div>
       <span class="pill-badge" style="background:#f43f5e;color:#fff;font-weight:800;">🔥 ハッキング中 (Simple)</span>
       <span class="pill-badge" style="background:rgba(56,189,248,0.2);color:#38bdf8;">{html.escape(sector)}</span>
-      <div style="font-size:22px;font-weight:800;color:#f8fafc;margin-top:6px;">{html.escape(corp_name)} <span style="font-size:13px;color:#f43f5e;">[{html.escape
+      <div style="font-size:22px;font-weight:800;color:#f8fafc;margin-top:6px;">{html.escape(corp_name)} <span style="font-size:13px;color:#f43f5e;">[{html.escape(fc)}]</span></div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:11px;color:#94a3b8;">現在値 (直近5分足)</div>
+      <div style="font-size:20px;font-weight:900;color:#f8fafc;">{curr_px:,.1f}円</div>
+      <div style="font-size:12.5px;font-weight:700;color:{color_code};">{chg_pct:+.2f}%</div>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("#### 📈 直近5分足プライスアクション ＆ モメンタム")
+st.line_chart(df_5m["Close"])
+
+# --- 5. WEBサーチ結果の表示 ---
+st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
+web_str_joined = "\n".join(web_snippets) if web_snippets else "特段の新規ヘッドライン・噂なし"
+
+st.markdown(f'<div class="fact-box"><b>🔍 【取得したWEBニュースヘッドライン】</b><br>{to_html(web_str_joined)}</div>', unsafe_allow_html=True)
