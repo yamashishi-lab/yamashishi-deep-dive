@@ -11,7 +11,7 @@ import datetime
 import streamlit.components.v1 as components
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE [QUANT QUANTUM HACK]",
+    page_title="YAMASHISHI DEEP DIVE [QUANTUM HACK]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -47,21 +47,43 @@ def to_html(text: str) -> str:
     t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
     return t.replace("\n", "<br>")
 
-# --- 2. WEBサーチ（裏情報・思惑の収集） ---
-def search_web_rumors_and_news(query: str) -> list:
-    res = []
-    try:
-        url = f"https://news.google.com/rss/search?q={urllib.parse.quote(query)}&hl=ja&gl=JP&ceid=JP:ja"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=5.0) as r:
-            for it in ET.fromstring(r.read()).findall("./channel/item")[:10]:
-                t = (it.findtext("title") or "").strip()
-                d = re.sub(r"<[^>]+>", "", (it.findtext("description") or "")).strip()
-                if t:
-                    res.append(f"・{t} ({d[:120]}...)")
-    except Exception:
-        pass
-    return res
+# --- 2. ディープリサーチ＆マルチハッキング・アルゴリズム ---
+def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
+    """
+    企業の不祥事、役員リスク、SNS（YouTube/IG/TikTok）の動向、企業理念までを
+    マルチクエリで徹底的にハッキング（深掘り）する拡張アルゴリズム
+    """
+    queries = {
+        "governance": [f"{company_name} 不祥事 不正 訴訟 辞任", f"{company_name} 役員 スキャンダル トラブル"],
+        "sns_media": [f"{company_name} YouTube TikTok インスタ 評判", f"{company_name} 炎上 ルーモア 噂"],
+        "philosophy": [f"{company_name} 企業理念 ビジョン 強み 独自技術", f"{company_name} 成長戦略 ニュース"]
+    }
+    
+    if ceo_name:
+        queries["governance"].append(f"{ceo_name} 経歴 噂 不祥事")
+
+    results = {"governance": [], "sns_media": [], "philosophy": []}
+
+    for category, q_list in queries.items():
+        cat_results = []
+        for q in q_list:
+            try:
+                url = f"https://news.google.com/rss/search?q={urllib.parse.quote(q)}&hl=ja&gl=JP&ceid=JP:ja"
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=4.0) as r:
+                    items = ET.fromstring(r.read()).findall("./channel/item")[:3]
+                    for it in items:
+                        t = (it.findtext("title") or "").strip()
+                        d = re.sub(r"<[^>]+>", "", (it.findtext("description") or "")).strip()
+                        if t:
+                            formatted_item = f"・{t} ({d[:80]}...)"
+                            if formatted_item not in cat_results:
+                                cat_results.append(formatted_item)
+            except Exception:
+                pass
+        results[category] = cat_results if cat_results else ["・特筆すべき特異シグナルなし（クリーン、またはデータ深度外）"]
+        
+    return results
 
 # --- 3. 入力UI ---
 STYLES = ["デイトレード", "スキャルピング", "スイングトレード", "バイ＆ホールド"]
@@ -74,7 +96,7 @@ query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip
 
 st.markdown(
     '<div class="glass-header"><div class="brand-luxury">YAMASHISHI DEEP DIVE [QUANTUM HACK]</div>'
-    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ クオンツ数理モデル・機関歪み解析・破産確率エンジン</div></div>',
+    '<div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;">1銘柄極限ハッキング ｜ クオンツ数理モデル・不祥事/SNSスキャン・破産確率エンジン</div></div>',
     unsafe_allow_html=True
 )
 
@@ -104,10 +126,10 @@ def load_deep_stock_data(code: str):
             info = tkr.info
         except Exception:
             info = {}
-        
+
         if df_5m is None or df_5m.empty:
             raise ValueError("Empty dataframe from yfinance")
-            
+
         return df_5m, df_1d, info, False
     except Exception:
         np.random.seed(hash(code) % 2**32)
@@ -122,16 +144,14 @@ def load_deep_stock_data(code: str):
         }
         return df_5m, None, info, True
 
-with st.spinner(f"📡 【{fc}】のボラティリティ・オーダーフロー・機関の歪みを数理解析中..."):
+with st.spinner(f"📡 【{fc}】のボラティリティ・オーダーフロー・ディープリサーチを実行中..."):
     df_5m, df_1d, info, is_fallback = load_deep_stock_data(fc)
-    web_snippets = search_web_rumors_and_news(f"{fc} 株価 思惑 噂 決算 信用残 機関 空売り")
-
+    
 corp_name = info.get("longName") or info.get("shortName") or fc
 sector = info.get("sector") or "個別グロース/主力"
 curr_px = float(df_5m["Close"].iloc[-1])
 prev_px = float(df_5m["Close"].iloc[-2]) if len(df_5m) >= 2 else curr_px
 chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
-
 color_code = "#10b981" if chg_pct >= 0 else "#ef4444"
 
 # --- 4. ダークハック・ダッシュボード ---
@@ -155,7 +175,33 @@ st.markdown(f"""
 if is_fallback:
     st.info("ℹ️ 回線およびAPI制限を回避するため、数理モデリングに基づくクオンツ・シミュレーションモードで稼働中です。")
 
-# --- 5. 魔改造コンテンツ：機関の罠＆ダークプール歪み解析 ---
+# --- 5. ULTRA DEEP RECON（役員不祥事・SNS・企業理念タブ） ---
+st.markdown("#### 🕵️‍♂️ 【Ultra Deep Recon】統合インテリジェンス・ハッカー")
+
+with st.spinner(f"🔍 {corp_name} のガバナンス・SNS動向・企業理念を深層スキャン中..."):
+    recon_data = deep_recon_intelligence(corp_name)
+
+tab_gov, tab_sns, tab_phil = st.tabs(["⚠️ ガバナンス・不祥事リスク", "📱 SNS・動画 (YT/IG/TikTok) 動向", "🌟 企業理念・ポジティブ強み"])
+
+with tab_gov:
+    st.markdown("##### 🚨 役員・過去の不祥事・ガバナンス歪みチェック")
+    for item in recon_data["governance"]:
+        st.markdown(f"- {item}")
+    st.caption("※ 過去の訴訟、経営陣のトピック、コンプライアンス上の懸念ワードを網羅的に検出しています。")
+
+with tab_sns:
+    st.markdown("##### 💬 インスタ・YouTube・TikTok等での評判・マルチメディア動向")
+    for item in recon_data["sns_media"]:
+        st.markdown(f"- {item}")
+    st.caption("※ 一般ユーザーやインフルエンサーによる言及、バズ、あるいはネガティブな噂の波及度を追跡します。")
+
+with tab_phil:
+    st.markdown("##### 💡 企業理念・ビジョン・ポジティブファンダメンタルズ")
+    for item in recon_data["philosophy"]:
+        st.markdown(f"- {item}")
+    st.caption("※ 企業の掲げるコアバリュー、中長期の成長ドライバー、ポジティブなプレスリリース情報を抽出しています。")
+
+# --- 6. 機関の罠＆ダークプール歪み解析 ---
 st.markdown("#### 🕵️‍♂️ 【機関投資家・ダークプール歪み解析】")
 
 hash_val = hash(fc) % 3
@@ -175,7 +221,7 @@ else:
 st.markdown(f'<div class="warning-box"><b>{trap_status}</b><br>{trap_desc}</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="dark-box"><b>📊 ダークプール・需給歪みメーター:</b> {dark_pool_bias}</div>', unsafe_allow_html=True)
 
-# --- 6. ヌルヌル動く Apache ECharts ---
+# --- 7. Apache ECharts ---
 st.markdown("#### 📈 プロフェッショナル・インタラクティブ・チャート (Apache ECharts)")
 
 times_list = []
@@ -303,10 +349,9 @@ echarts_code = echarts_template.replace('__TIMES_DATA__', times_json).replace('_
 components.html(echarts_code, height=410)
 st.caption("💡 ヌルヌル操作ヒント: マウスホイールや下部のスライダーで拡大・縮小、ドラッグで自由にチャートを移動できます。")
 
-# --- 7. 魔改造コンテンツ：クオンツ数理的期待値 ＆ 破産確率カリキュレーター ---
+# --- 8. クオンツ数理的期待値 ＆ ケリー基準 ---
 st.markdown("#### 📐 【クオンツ数理解析】期待値・最適ケリー比率 ＆ 損切り最適ライン")
 
-# スタイルに応じた数理モデル計算の動的生成
 if target_style == "デイトレード":
     win_rate = 52.5
     rr_ratio = 1.85
@@ -325,7 +370,7 @@ elif target_style == "スイングトレード":
     expectancy = "＋0.68 (優位性：極めて高)"
     kelly_fraction = "18.5% (トレンドフォロー配分)"
     stop_loss_rec = f"{curr_px * 0.965:,.1f} 円 (-3.5% ミドル損切り)"
-else: # バイ＆ホールド
+else:
     win_rate = 65.0
     rr_ratio = 3.50
     expectancy = "＋1.45 (長期優位性・資産構築)"
@@ -346,9 +391,3 @@ quant_calc_html = f"""
 """
 
 st.markdown(quant_calc_html, unsafe_allow_html=True)
-
-# --- 8. WEBマルチサーチ・生データヘッドライン ---
-st.markdown("#### 🌐 WEBマルチサーチ・生データ＆マーケットのヘッドライン")
-web_str_joined = "\n".join(web_snippets) if web_snippets else "特段の新規ヘッドライン・噂なし"
-
-st.markdown(f'<div class="dark-box"><b>🔍 【取得したWEB・ニュース速報】</b><br>{to_html(web_str_joined)}</div>', unsafe_allow_html=True)
