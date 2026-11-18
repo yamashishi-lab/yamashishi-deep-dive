@@ -158,7 +158,7 @@ st.markdown("#### 📈 プロフェッショナル・インタラクティブ・
 df_chart = df_5m.reset_index()
 time_col = "Datetime" if "Datetime" in df_chart.columns else df_chart.columns[0]
 
-# 選択・ズーム用のセレクター定義（マウスドラッグ＆ホイールでヌルヌル動く）
+# 選択・ズーム用のセレクター定義
 zoom_selector = alt.selection_interval(encodings=['x', 'y'], bind='scales')
 nearest_selector = alt.selection_point(on='mouseover', nearest=True, fields=[time_col], empty=False)
 
@@ -178,7 +178,7 @@ area_chart = alt.Chart(df_chart).mark_area(
         gradient='linear',
         stops=[
             alt.GradientStop(color='rgba(244, 63, 94, 0.4)', offset=0),
-            alt.GradientStop(color='rgba(244, 63, 94, 0.0)', offset=1]
+            alt.GradientStop(color='rgba(244, 63, 94, 0.0)', offset=1)
         ],
         x1=1, x2=1, y1=1, y2=0
     )
@@ -235,7 +235,7 @@ text_layer = alt.Chart(df_chart).mark_text(
     nearest_selector
 )
 
-# すべてのレイヤーを合成し、ズーム＆パン（ドラッグ・スクロール）を有効化
+# すべてのレイヤーを合成し、ズーム＆パンを有効化
 interactive_chart = alt.layer(
     area_chart, line_chart, selectors_layer, rule_layer, points_layer, text_layer
 ).properties(
