@@ -33,7 +33,7 @@ def inject_css():
 
 inject_css()
 
-# --- 2. APIキー・Gemini通信（公式SDK方式） ---
+# --- 2. APIキー・Gemini通信（SDK最適化・自動フォールバック版） ---
 def get_gemini_key():
     val = os.environ.get("GEMINI_API_KEY", "")
     if not val:
@@ -51,18 +51,34 @@ def call_gemini(sys_p: str, user_p: str) -> str:
         return "⚠️ Gemini APIキーが設定されていません。StreamlitのSecretsに設定してください。"
     
     try:
-        # 公式SDKで認証を設定
         genai.configure(api_key=GEMINI_API_KEY)
         
-        # 安定版のフラッシュモデルを指定し、システム指示を渡す
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            system_instruction=sys_p
-        )
-        response = model.generate_content(user_p)
-        return response.text
+        # 利用可能な主要モデルを自動で順に試すことで404エラーを防ぐ
+        models_to_try = [
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-pro",
+            "gemini-pro"
+        ]
+        
+        last_error = ""
+        for m_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(
+                    model_name=m_name,
+                    system_instruction=sys_p
+                )
+                response = model.generate_content(user_p)
+                if response and hasattr(response, "text") and response.text:
+                    return response.text
+            except Exception as sub_e:
+                last_error = str(sub_e)
+                continue
+                
+        return f"API呼び出しエラー (全モデル接続失敗): {last_error}"
+        
     except Exception as e:
-        return f"API呼び出しエラー: {str(e)}"
+        return f"API初期化エラー: {str(e)}"
 
 # --- 3. WEBサーチ＆ニュース収集関数 ---
 def search_web_rumors_and_news(query: str) -> list:
