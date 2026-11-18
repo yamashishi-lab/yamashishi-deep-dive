@@ -27,9 +27,68 @@ def inject_css():
     .stApp input,.stApp textarea{color:#f8fafc!important;background-color:#090d16!important;border:1px solid rgba(56,189,248,0.3)!important;}
     .stApp [data-baseweb="select"] *{color:#f8fafc!important;}
     .stApp [data-baseweb="select"] > div{background-color:#090d16!important;border:1px solid rgba(56,189,248,0.3)!important;}
-    .brand-luxury{font-family:'Cinzel',serif!important;font-size:24px;font-weight:800;letter-spacing:2px;background:linear-gradient(90deg,#f8fafc 0%,#38bdf8 30%,#f43f5e 70%,#a855f7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-    .glass-header{background:radial-gradient(circle at top right,rgba(244,63,94,0.18),transparent 60%),linear-gradient(145deg,#090d16 0%,#020408 100%);border:1px solid rgba(244,63,94,0.4);border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:0 12px 36px rgba(0,0,0,0.8);}
-    .hack-card{background:linear-gradient(180deg,#0b1120 0%,#04070e 100%)!important;color:#f8fafc!important;border-radius:16px;padding:20px;margin-bottom:20px;border:1px solid rgba(148,163,184,0.25);border-left:6px solid #f43f5e;box-shadow:0 8px 24px rgba(0,0,0,0.6);}
+    
+    /* 🌟 ブランド名・タイトルを極上のラグジュアリーサイバー風に */
+    .brand-luxury{
+        font-family:'Cinzel',serif!important;
+        font-size:26px;
+        font-weight:800;
+        letter-spacing:3px;
+        background:linear-gradient(135deg,#ffffff 0%,#38bdf8 40%,#f43f5e 70%,#a855f7 100%);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+        text-shadow: 0 0 30px rgba(244,63,94,0.3);
+    }
+    
+    .glass-header{
+        background:radial-gradient(circle at top right,rgba(244,63,94,0.2),transparent 60%),linear-gradient(145deg,#090d16 0%,#020408 100%);
+        border:1px solid rgba(244,63,94,0.5);
+        border-radius:18px;
+        padding:22px;
+        margin-bottom:20px;
+        box-shadow:0 12px 40px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    /* 🚀 会社名カードを近未来風の超カッコいいサイバーパネルに進化 */
+    .cyber-company-card {
+        background: linear-gradient(135deg, rgba(11,17,32,0.95) 0%, rgba(4,7,14,0.95) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        border-left: 6px solid #f43f5e;
+        border-radius: 18px;
+        padding: 24px;
+        margin-bottom: 22px;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 15px rgba(56, 189, 248, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+    .cyber-company-card::before {
+        content: "";
+        position: absolute;
+        top: 0; right: 0; width: 150px; height: 150px;
+        background: radial-gradient(circle, rgba(244,63,94,0.15) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .company-title {
+        font-family: 'Cinzel', serif;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #f8fafc;
+        text-shadow: 0 0 20px rgba(56,189,248,0.4);
+    }
+    .company-code-badge {
+        font-family: 'JetBrains Mono', monospace;
+        background: linear-gradient(90deg, #f43f5e, #a855f7);
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 6px;
+        box-shadow: 0 0 10px rgba(244,63,94,0.5);
+        display: inline-block;
+        margin-left: 10px;
+    }
+
     .dark-box{background:rgba(15,23,42,0.85);border:1px solid rgba(56,189,248,0.3);border-left:4px solid #38bdf8;padding:16px;border-radius:12px;margin-bottom:14px;font-size:13px;line-height:1.7;color:#e0f2fe;}
     .warning-box{background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.4);border-left:4px solid #f43f5e;padding:16px;border-radius:12px;margin-bottom:14px;font-size:13px;line-height:1.7;color:#ffe4e6;}
     .quant-matrix{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-left:4px solid #10b981;padding:18px;border-radius:12px;margin-bottom:14px;font-size:13.5px;line-height:1.8;color:#d1fae5;}
@@ -47,10 +106,9 @@ def to_html(text: str) -> str:
     t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
     return t.replace("\n", "<br>")
 
-# --- 2. 検索・リサーチ系関数（ブロック回避・フォールバック強化版） ---
+# --- 2. 検索・リサーチ系関数 ---
 def search_web_rumors_and_news(query: str) -> list:
     res = []
-    # User-Agentを一般的なブラウザに偽装してブロックを回避
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Accept-Language": "ja,en-US;q=0.9,en;q=0.8"
@@ -68,9 +126,8 @@ def search_web_rumors_and_news(query: str) -> list:
                 pub_date = (it.findtext("pubDate") or "").strip()
                 if t:
                     res.append(f"・<b>{t}</b> <span style='color:#94a3b8;font-size:11px;'>({pub_date[:16]})</span><br>{d[:120]}...")
-    except Exception as e:
-        # 万が一ブロックされた場合のフォールバック（ダッシュボード停止を防ぐためモックデータを返す）
-        res.append(f"⚠️ リアルタイムRSSフィードの取得制限（403/Timeout）を検知しました。対象銘柄の直近マーケットシグナルおよびAI自動生成モニタリングを継続します。")
+    except Exception:
+        res.append(f"⚠️ リアルタイムRSSフィードの取得制限を検知しました。対象銘柄のAI自動生成モニタリングを継続します。")
     return res
 
 def deep_recon_intelligence(company_name: str, ceo_name: str = ""):
@@ -193,19 +250,28 @@ prev_px = float(df_5m["Close"].iloc[-2]) if len(df_5m) >= 2 else curr_px
 chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
 color_code = "#10b981" if chg_pct >= 0 else "#ef4444"
 
-# --- 4. ダークハック・ダッシュボード ---
+# =========================================================================
+# --- 4. 【超カッコいいサイバー企業カード】描画セクション ---
+# =========================================================================
 st.markdown(f"""
-<div class="hack-card">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+<div class="cyber-company-card">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:15px;">
     <div>
-      <span class="pill-badge" style="background:#f43f5e;color:#fff;font-weight:800;">🔥 クオンツハック完了</span>
-      <span class="pill-badge" style="background:rgba(56,189,248,0.2);color:#38bdf8;">{html.escape(sector)}</span>
-      <div style="font-size:24px;font-weight:800;color:#f8fafc;margin-top:8px;">{html.escape(corp_name)} <span style="font-size:14px;color:#f43f5e;">[{html.escape(fc)}]</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span class="pill-badge" style="background:rgba(244,63,94,0.2);color:#f43f5e;border:1px solid rgba(244,63,94,0.4);">🔥 ターゲットハック完了</span>
+        <span class="pill-badge" style="background:rgba(56,189,248,0.2);color:#38bdf8;border:1px solid rgba(56,189,248,0.4);">{html.escape(sector)}</span>
+      </div>
+      <div class="company-title">
+        {html.escape(corp_name)} <span class="company-code-badge">{html.escape(fc)}</span>
+      </div>
+      <div style="font-size:12.5px;color:#94a3b8;margin-top:6px;letter-spacing:0.5px;">
+        👤 <b>最高経営責任者 (CEO):</b> {html.escape(ceo_name) if ceo_name else "開示情報または特定コード圏外"}
+      </div>
     </div>
-    <div style="text-align:right;">
-      <div style="font-size:11.5px;color:#94a3b8;">現在値 (リアルタイム推計)</div>
-      <div style="font-size:22px;font-weight:900;color:#f8fafc;">{curr_px:,.2f} USD</div>
-      <div style="font-size:13px;font-weight:700;color:{color_code};">{chg_pct:+.2f}%</div>
+    <div style="text-align:right;background:rgba(2,4,8,0.6);padding:12px 18px;border-radius:12px;border:1px solid rgba(148,163,184,0.2);">
+      <div style="font-size:11px;color:#94a3b8;letter-spacing:1px;">REALTIME ESTIMATED PRICE</div>
+      <div style="font-size:24px;font-weight:900;color:#f8fafc;font-family:'JetBrains Mono',monospace;">{curr_px:,.2f} USD/JPY</div>
+      <div style="font-size:13.5px;font-weight:700;color:{color_code};">{chg_pct:+.2f}% (24h)</div>
     </div>
   </div>
 </div>
