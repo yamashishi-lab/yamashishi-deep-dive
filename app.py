@@ -36,6 +36,6 @@ def inject_css():
     """
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 
-if st.query_params.get("safe", "0") != "1":
-    inject_css()
-else:
+inject_css()
+
+# テキスト→安全なHTML（**太字**と改行に対応）
