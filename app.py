@@ -19,7 +19,7 @@ import xml.etree.ElementTree as ET
 LAB_APP_URL = "https://your-yamashishi-lab.streamlit.app/"
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE v4 [LIVE QUANTUM TERMINAL]",
+    page_title="YAMASHISHI DEEP DIVE v5 [LIVE QUANTUM TERMINAL]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -270,7 +270,7 @@ def inject_css():
 inject_css()
 
 # =========================================================================
-# 2. フォーマット ＆ ビジュアルヘルパー
+# 2. フォーマット ＆ ビジュアルヘルパー（横幅ズレ完全対策済み）
 # =========================================================================
 def fmt_currency(val, is_jp: bool) -> str:
     if val is None or (isinstance(val, float) and np.isnan(val)):
@@ -287,25 +287,36 @@ def get_gemini_api_key() -> str:
     return str(k).strip()
 
 def render_echarts(option_dict: dict, height: int = 300):
+    """ResizeObserver搭載でタブ切替・スマホ幅でも横幅が絶対に崩れないEChartsラッパー"""
     opt_json = json.dumps(option_dict, ensure_ascii=False)
     html_code = f"""
     <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <style>body{{margin:0;background:#0b1120;overflow:hidden;}} #c{{width:100%;height:{height}px;}}</style>
+    <style>
+      html, body {{ width: 100%; height: 100%; margin: 0; padding: 0; background: #0b1120; overflow: hidden; }}
+      #c {{ width: 100vw; max-width: 100%; height: {height}px; }}
+    </style>
     </head><body><div id="c"></div><script>
-    var chart = echarts.init(document.getElementById('c'), 'dark');
-    chart.setOption({opt_json});
-    window.addEventListener('resize', function() {{ chart.resize(); }});
+      var el = document.getElementById('c');
+      var chart = echarts.init(el, 'dark');
+      chart.setOption({opt_json});
+      function doResize() {{ chart.resize(); }}
+      window.addEventListener('resize', doResize);
+      if (typeof ResizeObserver !== 'undefined') {{
+        new ResizeObserver(doResize).observe(el);
+      }}
+      setTimeout(doResize, 120);
+      setTimeout(doResize, 400);
     </script></body></html>
     """
-    components.html(html_code, height=height + 6)
+    components.html(html_code, height=height + 4)
 
 def render_live_clock_bar(sync_interval: int = 30):
-    """秒刻みのリアルタイム時計＋次回自動同期カウントダウン（JS）"""
     html_code = f"""
     <!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
-      body {{ margin:0; background:transparent; font-family:'JetBrains Mono',monospace; }}
+      html, body {{ width:100%; margin:0; padding:0; background:transparent; font-family:'JetBrains Mono',monospace; }}
       .bar {{
         display:flex; justify-content:space-between; align-items:center;
         background:rgba(15,23,42,0.85); border:1px solid rgba(16,185,129,0.35);
@@ -437,6 +448,20 @@ def load_stock_core(code: str) -> dict:
     except Exception:
         pass
 
+    # 保有構成（機関 vs インサイダー vs 一般浮動株）
+    holder_breakdown = None
+    try:
+        inst_p = info.get("heldPercentInstitutions")
+        ins_p = info.get("heldPercentInsiders")
+        if inst_p is not None or ins_p is not None:
+            i_val = round(float(inst_p or 0.0) * 100.0, 1)
+            in_val = round(float(ins_p or 0.0) * 100.0, 1)
+            pub_val = round(max(0.0, 100.0 - i_val - in_val), 1)
+            holder_breakdown = {"inst": i_val, "insider": in_val, "public": pub_val}
+    except Exception:
+        pass
+
+    # 大口機関投資家トップ5
     inst_holders = []
     try:
         ih = tkr.institutional_holders
@@ -450,26 +475,10 @@ def load_stock_core(code: str) -> dict:
     except Exception:
         pass
 
-    opt_data = None
-    try:
-        exps = tkr.options
-        if exps:
-            chain = tkr.option_chain(exps[0])
-            c_vol = float(chain.calls["volume"].fillna(0).sum())
-            p_vol = float(chain.puts["volume"].fillna(0).sum())
-            c_iv = float(chain.calls["impliedVolatility"].dropna().median()) * 100.0 if not chain.calls.empty else 0.0
-            p_iv = float(chain.puts["impliedVolatility"].dropna().median()) * 100.0 if not chain.puts.empty else 0.0
-            opt_data = {
-                "exp": exps[0], "pcr": round(p_vol / max(c_vol, 1.0), 2),
-                "call_vol": int(c_vol), "put_vol": int(p_vol),
-                "call_iv": round(c_iv, 1), "put_iv": round(p_iv, 1)
-            }
-    except Exception:
-        pass
-
     return {
         "df_1d": df_1d, "df_5m": df_5m, "info": info, "q_fin": q_fin,
-        "earnings_hist": earnings_hist, "inst_holders": inst_holders, "opt_data": opt_data
+        "earnings_hist": earnings_hist, "holder_breakdown": holder_breakdown,
+        "inst_holders": inst_holders
     }
 
 @st.cache_data(ttl=90)
@@ -500,11 +509,10 @@ def fetch_news_and_sentiment(query: str) -> dict:
 
     tot = max(pos_c + neu_c + neg_c, 1)
     shock_score = round((pos_c - neg_c) / tot, 2)
-    gauge_val = int(np.clip(round(50 + shock_score * 50), 0, 100))
     return {
         "items": items_out, "pos_pct": round(pos_c / tot * 100),
         "neu_pct": round(neu_c / tot * 100), "neg_pct": round(neg_c / tot * 100),
-        "counts": (pos_c, neu_c, neg_c), "shock_score": shock_score, "gauge_val": gauge_val
+        "counts": (pos_c, neu_c, neg_c), "shock_score": shock_score
     }
 
 @st.cache_data(ttl=180)
@@ -526,7 +534,7 @@ def fetch_governance_risks(company_name: str) -> list:
     return risks
 
 # =========================================================================
-# 4. 5分刻みリアル軌道 ＆ 各種クオンツ計算エンジン
+# 4. アルゴリズムエンジン（指数減衰ウェイト5分足軌道・VIX連動・AIメモ自動キャッシュ）
 # =========================================================================
 def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
     s_ret = stock_close.pct_change().dropna().tail(90)
@@ -549,15 +557,16 @@ def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
     return results
 
 def build_5m_realtime_trajectory(
-    curr_px: float, df_5m: pd.DataFrame, macro_sens: list, news_res: dict, is_jp: bool
+    curr_px: float, df_5m: pd.DataFrame, macro_sens: list, macro_data: dict, news_res: dict, is_jp: bool
 ) -> dict:
-    # 5分刻みスロット生成（東証: 62本 / 米国: 79本）
     if is_jp:
         am = [f"{h:02d}:{m:02d}" for h in range(9, 12) for m in range(0, 60, 5) if not (h == 11 and m > 30)]
         pm = [f"{h:02d}:{m:02d}" for h in range(12, 16) for m in range(0, 60, 5) if not (h == 12 and m < 30) and not (h == 15 and m > 30)]
         slots = am + pm
+        lunch_idx = len(am) - 1
     else:
         slots = [f"{h:02d}:{m:02d}" for h in range(9, 17) for m in range(0, 60, 5) if not (h == 9 and m < 30) and not (h == 16 and m > 0)]
+        lunch_idx = None
 
     n_slots = len(slots)
     slot_means = np.zeros(n_slots)
@@ -572,8 +581,12 @@ def build_5m_realtime_trajectory(
         tmp["_hm"] = idx_dt.strftime("%H:%M")
 
         unique_days = sorted(tmp["_d"].unique().tolist())
-        day_ret_maps, day_vol_maps = [], []
-        for d_str in unique_days[:-1]:
+        past_days = unique_days[:-1]
+        day_ret_maps, day_vol_maps, day_weights = [], [], []
+
+        # 直近重視の指数減衰ウェイト（新しい日ほど重みが大きい）
+        n_past = len(past_days)
+        for d_idx, d_str in enumerate(past_days):
             sub = tmp[tmp["_d"] == d_str]
             if len(sub) < 10: continue
             open_p = float(sub["Open"].iloc[0])
@@ -587,17 +600,26 @@ def build_5m_realtime_trajectory(
             if r_map:
                 day_ret_maps.append(r_map)
                 day_vol_maps.append(v_map)
+                w = np.exp(1.2 * (d_idx / max(n_past - 1, 1)))
+                day_weights.append(float(w))
 
         for i, sl in enumerate(slots):
-            r_vals = [m[sl] for m in day_ret_maps if sl in m]
-            v_vals = [m[sl] for m in day_vol_maps if sl in m]
+            r_vals, w_vals, v_vals = [], [], []
+            for rm, vm, w in zip(day_ret_maps, day_vol_maps, day_weights):
+                if sl in rm:
+                    r_vals.append(rm[sl])
+                    w_vals.append(w)
+                    v_vals.append(vm[sl])
             if len(r_vals) >= 3:
-                slot_means[i] = float(np.mean(r_vals))
-                slot_stds[i] = max(float(np.std(r_vals)), 0.0025)
+                w_arr = np.array(w_vals) / np.sum(w_vals)
+                r_arr = np.array(r_vals)
+                w_mean = float(np.sum(w_arr * r_arr))
+                w_std = float(np.sqrt(np.sum(w_arr * ((r_arr - w_mean) ** 2))))
+                slot_means[i] = w_mean
+                slot_stds[i] = max(w_std, 0.0025)
                 slot_vols[i] = float(np.mean(v_vals)) if v_vals else 0.0
             else:
                 slot_stds[i] = 0.003 + 0.009 * np.sqrt((i + 1) / n_slots)
-                # U字カーブのデフォルト出来高形状
                 u_pos = (i / max(n_slots - 1, 1)) * 2.0 - 1.0
                 slot_vols[i] = 100.0 * (0.4 + 1.4 * (u_pos ** 2))
 
@@ -608,11 +630,12 @@ def build_5m_realtime_trajectory(
                 if row["_hm"] in slots:
                     actual_today_map[row["_hm"]] = round(float(row["Close"]), 2)
 
-    # マクロβ ＆ ニュース自動補正
+    # マクロβ ＆ ニュース ＆ VIXボラ連動補正
     sens_map = {x["key"]: x for x in macro_sens}
     mkt_key = "SOX" if ("SOX" in sens_map and abs(sens_map["SOX"]["corr"]) > 0.35) else ("N225" if "N225" in sens_map else "SP500")
     mkt_info = sens_map.get(mkt_key, {"label": "市場指数", "beta": 0.5, "latest_diff": 0.0})
     fx_info = sens_map.get("USDJPY", {"label": "ドル円", "beta": 0.0, "latest_diff": 0.0})
+    vix_diff = macro_data.get("VIX", {}).get("diff_pct", 0.0)
 
     macro_gap_pct = (mkt_info["latest_diff"] * mkt_info["beta"]) * 0.45
     fx_gap_pct = (fx_info["latest_diff"] * fx_info["beta"]) * 0.35
@@ -621,16 +644,20 @@ def build_5m_realtime_trajectory(
     est_open_px = curr_px * (1.0 + total_open_gap_pct / 100.0)
 
     intraday_drift = float(np.clip((news_res["shock_score"] * 0.006) + (macro_gap_pct / 100.0 * 0.15), -0.02, 0.02))
-    vol_boost = 1.0 + abs(news_res["shock_score"]) * 0.30
+    vix_boost = 1.0 + max(0.0, vix_diff / 100.0) * 1.2
+    vol_boost = (1.0 + abs(news_res["shock_score"]) * 0.30) * vix_boost
 
-    p50_arr, p85_arr, p15_arr, actual_arr = [], [], [], []
+    p50_arr, p85_arr, p15_arr, band_diff_arr, actual_arr = [], [], [], [], []
     for i, sl in enumerate(slots):
         frac = i / max(n_slots - 1, 1)
         mid = est_open_px * (1.0 + slot_means[i] + intraday_drift * frac)
         band = est_open_px * slot_stds[i] * vol_boost * 1.15
+        lo_v = max(mid - band, curr_px * 0.5)
+        hi_v = mid + band
         p50_arr.append(round(float(mid), 2))
-        p85_arr.append(round(float(mid + band), 2))
-        p15_arr.append(round(float(max(mid - band, curr_px * 0.5)), 2))
+        p85_arr.append(round(float(hi_v), 2))
+        p15_arr.append(round(float(lo_v), 2))
+        band_diff_arr.append(round(float(hi_v - lo_v), 2))
         actual_arr.append(actual_today_map.get(sl, None))
 
     idx_min = int(np.argmin(p50_arr))
@@ -639,7 +666,8 @@ def build_5m_realtime_trajectory(
     est_close_chg = round((est_close_px - curr_px) / max(curr_px, 1e-4) * 100.0, 2)
 
     return {
-        "slots": slots, "p50": p50_arr, "p85": p85_arr, "p15": p15_arr,
+        "slots": slots, "lunch_idx": lunch_idx,
+        "p50": p50_arr, "p85": p85_arr, "p15": p15_arr, "band_diff": band_diff_arr,
         "vols": [round(float(v), 1) for v in slot_vols],
         "actual": actual_arr, "has_actual": any(x is not None for x in actual_arr),
         "est_open_px": est_open_px, "est_open_gap_pct": round(total_open_gap_pct, 2),
@@ -671,17 +699,15 @@ def compute_volume_profile_detail(df_1d: pd.DataFrame, curr_px: float, is_jp: bo
     centers = [(bins[i] + bins[i + 1]) * 0.5 for i in range(14)]
     poc_idx = int(np.argmax(hist))
 
-    # 仮想板（現在値より上の最大出来高帯＝売り壁、下の最大出来高帯＝買い支え）
     above_idxs = [i for i, c in enumerate(centers) if c > curr_px * 1.005]
     below_idxs = [i for i, c in enumerate(centers) if c < curr_px * 0.995]
     res_px = centers[max(above_idxs, key=lambda i: hist[i])] if above_idxs else curr_px * 1.05
     sup_px = centers[max(below_idxs, key=lambda i: hist[i])] if below_idxs else curr_px * 0.95
 
-    labels = [fmt_currency(c, is_jp) for c in centers]
     return {
         "overhead_pct": round(above_v / tot_v * 100.0, 1),
         "poc_px": float(centers[poc_idx]),
-        "labels": labels,
+        "labels": [fmt_currency(c, is_jp) for c in centers],
         "vols": [round(float(v) / 1e6, 2) for v in hist],
         "res_px": float(res_px),
         "sup_px": float(sup_px)
@@ -698,16 +724,21 @@ def compute_5axis_scores(info: dict, ovh_pct: float, gov_cnt: int) -> list:
     saf_sc = int(np.clip(95 - gov_cnt * 18, 25, 98))
     return [val_sc, gro_sc, prf_sc, sup_sc, saf_sc]
 
-def generate_investment_memo(corp_name: str, fc: str, curr_px: float, is_jp: bool, info: dict, traj: dict, macro_sens: list, news_res: dict, gov_risks: list, vp: dict) -> tuple:
+@st.cache_data(ttl=600)
+def generate_auto_investment_memo(
+    fc: str, corp_name: str, curr_px_str: str, open_gap: float, close_chg: float,
+    dip_time: str, peak_time: str, ovh_pct: float, top_m_lbl: str, top_m_corr: float,
+    top_m_beta: float, pos_pct: int, gov_cnt: int, upside_s: str
+) -> tuple:
+    """10分間キャッシュで自動生成（30秒ライブ更新でもAPIを無駄打ちしない）"""
     api_key = get_gemini_api_key()
     prompt = f"""あなたはヘッジファンドのシニア・エクイティアナリストです。以下の実測データに基づき、ファンドマネージャー向けの「1分インベストメントメモ」を日本語で簡潔に作成してください。
-銘柄: {corp_name} ({fc}) / 現在値: {fmt_currency(curr_px, is_jp)}
-翌営業日予測: 寄付き {traj['est_open_gap_pct']:+.2f}% / 大引け予測 {traj['est_close_chg']:+.2f}% / 押し目 {traj['dip_time']} / ピーク {traj['peak_time']}
-PER: {info.get('trailingPE')} / EV/EBITDA: {info.get('enterpriseToEbitda')} / 上値しこり玉: {vp['overhead_pct']}%
-最大マクロ連動: {macro_sens[0]['label'] if macro_sens else '-'} (相関 {macro_sens[0]['corr'] if macro_sens else 0})
-ニュース強気度: {news_res['pos_pct']}% / ガバナンスリスク検知: {len(gov_risks)}件
+銘柄: {corp_name} ({fc}) / 現在値: {curr_px_str} / アナリスト乖離: {upside_s}
+翌営業日予測: 寄付き {open_gap:+.2f}% / 大引け予測 {close_chg:+.2f}% / 押し目 {dip_time} / ピーク {peak_time}
+上値しこり玉: {ovh_pct}% / 最大マクロ連動: {top_m_lbl} (相関 {top_m_corr}, β={top_m_beta})
+ニュース強気度: {pos_pct}% / ガバナンスリスク検知: {gov_cnt}件
 
-以下の3セクション構成（合計380文字以内、箇条書き）で出力してください：
+以下の3セクション構成（合計350文字以内、箇条書き）で出力してください：
 🟢 Bull Case（強気シナリオ）
 🔴 Bear Case（弱気・死角リスク）
 ⚡ Next Catalyst（次の注目トリガー）"""
@@ -716,23 +747,20 @@ PER: {info.get('trailingPE')} / EV/EBITDA: {info.get('enterpriseToEbitda')} / �
         for mod in ("gemini-2.5-flash", "gemini-2.0-flash"):
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent"
-                body = json.dumps({"contents": [{"role": "user", "parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": 700, "temperature": 0.6}}).encode("utf-8")
+                body = json.dumps({"contents": [{"role": "user", "parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": 650, "temperature": 0.6}}).encode("utf-8")
                 req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "x-goog-api-key": api_key}, method="POST")
-                with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=12.0) as r:
+                with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=10.0) as r:
                     res_j = json.loads(r.read().decode("utf-8"))
                     txt = "".join([p.get("text", "") for p in res_j["candidates"][0]["content"]["parts"] if "text" in p])
                     if txt.strip():
-                        return txt.strip(), f"🔵 Gemini AI 生成 ({mod})"
+                        return txt.strip(), f"🔵 AUTO AI ANALYST ({mod})"
             except Exception:
                 continue
 
-    top_m = macro_sens[0] if macro_sens else {"label": "市場指数", "corr": 0.0, "beta": 1.0}
-    target_m = info.get("targetMeanPrice")
-    upside_s = f"{(target_m/curr_px - 1)*100:+.1f}%" if target_m else "算出不可"
-    bull = f"・アナリスト目標乖離 {upside_s}、翌営業日の大引け予測 {traj['est_close_chg']:+.2f}%。\n・ニュース強気度 {news_res['pos_pct']}%、上値しこり玉 {vp['overhead_pct']}%。"
-    bear = f"・{top_m['label']}との相関係数 {top_m['corr']}（β={top_m['beta']}）でマクロ急変時の連れ安リスクあり。\n・ガバナンス報道は {len(gov_risks)}件検知（{'要精査' if gov_risks else '現時点でクリーン'}）。"
-    cat = f"・明日は {traj['dip_time']} 頃の押し目反発と {traj['peak_time']} 頃のピーク形成が焦点。"
-    return f"🟢 Bull Case（強気シナリオ）\n{bull}\n\n🔴 Bear Case（弱気・死角リスク）\n{bear}\n\n⚡ Next Catalyst（次の注目トリガー）\n{cat}", "⚙️ クオンツ自動ルール生成（Gemini API未設定時）"
+    bull = f"・アナリスト目標乖離 {upside_s}、翌営業日の大引け予測 {close_chg:+.2f}%。\n・ニュース強気度 {pos_pct}%、上値しこり玉 {ovh_pct}%。"
+    bear = f"・{top_m_lbl}との相関係数 {top_m_corr}（β={top_m_beta}）でマクロ急変時の連れ安リスクあり。\n・ガバナンス報道は {gov_cnt}件検知（{'要精査' if gov_cnt else '現時点でクリーン'}）。"
+    cat = f"・明日は {dip_time} 頃の押し目反発と {peak_time} 頃のピーク形成が焦点。"
+    return f"🟢 Bull Case（強気シナリオ）\n{bull}\n\n🔴 Bear Case（弱気・死角リスク）\n{bear}\n\n⚡ Next Catalyst（次の注目トリガー）\n{cat}", "⚙️ AUTO QUANT MEMO（実測データ自動生成）"
 
 # =========================================================================
 # 5. 固定ヘッダー ＆ 入力コントロール
@@ -741,8 +769,8 @@ h_col1, h_col2 = st.columns([3.1, 1.3])
 with h_col1:
     st.markdown(
         '<div class="glass-header" style="margin-bottom:6px;">'
-        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v4</div>'
-        '<div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">5分刻み翌営業日軌道 × 自動ライブ同期 × 機関投資家監査</div>'
+        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v5</div>'
+        '<div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">5分刻み確率コーン軌道 × 自動AI監査 × 大口株主トラッカー</div>'
         '</div>',
         unsafe_allow_html=True
     )
@@ -771,7 +799,7 @@ is_jp = fc.endswith(".T")
 def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
     render_live_clock_bar(sync_interval=30)
 
-    with st.spinner(f"📡 【{fc_code}】の5分足波形・マクロ・ニュースをライブ同期中..."):
+    with st.spinner(f"📡 【{fc_code}】の5分足波形・マクロ・大口株主・ニュースをライブ同期中..."):
         data = load_stock_core(fc_code)
         macro_data = load_macro_data()
 
@@ -792,15 +820,20 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
     news_res = fetch_news_and_sentiment(f"{corp_name} OR {fc_code.replace('.T', '')} 株価")
     gov_risks = fetch_governance_risks(corp_name)
     vp = compute_volume_profile_detail(df_1d, curr_px, is_jp_flag)
-    traj = build_5m_realtime_trajectory(curr_px, df_5m, macro_sens, news_res, is_jp_flag)
+    traj = build_5m_realtime_trajectory(curr_px, df_5m, macro_sens, macro_data, news_res, is_jp_flag)
 
-    # 52週レンジ計算
-    hi_52 = float(df_1d["High"].max())
-    lo_52 = float(df_1d["Low"].min())
+    # 総合リスク＆センチメント指数（ニュース感情 - ガバナンス減点）
+    comp_score = int(np.clip(round(50 + news_res["shock_score"] * 45 - len(gov_risks) * 9), 5, 98))
+    if comp_score >= 75:   meter_lbl = "EXTREME GREED // 極度の強気"
+    elif comp_score >= 58: meter_lbl = "BULLISH // 強気優勢"
+    elif comp_score >= 42: meter_lbl = "NEUTRAL // 均衡・様子見"
+    elif comp_score >= 25: meter_lbl = "FEAR // 警戒・弱気"
+    else:                  meter_lbl = "EXTREME FEAR // リスク警戒"
+
+    hi_52, lo_52 = float(df_1d["High"].max()), float(df_1d["Low"].min())
     pos_52 = float(np.clip((curr_px - lo_52) / max(hi_52 - lo_52, 1e-4) * 100.0, 2.0, 98.0))
     spark_svg = build_mini_sparkline_svg(df_1d["Close"].tail(20).values)
 
-    # 動的オーラ（明日予測がプラスならエメラルド、マイナスならクリムゾン）
     aura_col = "#10b981" if traj["est_open_gap_pct"] >= 0 else "#ef4444"
     aura_glow = "rgba(16,185,129,0.22)" if traj["est_open_gap_pct"] >= 0 else "rgba(239,68,68,0.22)"
     target_mean = info.get("targetMeanPrice")
@@ -849,36 +882,56 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
     tab1, tab2, tab3, tab4 = st.tabs([
         "翌営業日 1日軌道",
         "マクロβ・決算",
-        "プロ財務・板構造",
+        "財務・大口株主",
         "リスク・AIメモ"
     ])
 
     # ---------------------------------------------------------------------
-    # TAB 1: 5分刻み翌営業日1日軌道 ＋ 出来高U字カーブ ＋ 3シナリオ分岐
+    # TAB 1: 5分刻み翌営業日1日軌道（確率コーン塗りつぶし＋前場後場区切り）
     # ---------------------------------------------------------------------
     with tab1:
         st.markdown(
             '<div class="trajectory-header">'
-            '<div class="trajectory-title">NEXT SESSION 5M TRAJECTORY <span>// 翌営業日 5分刻み完全軌道</span></div>'
+            '<div class="trajectory-title">NEXT SESSION 5M TRAJECTORY <span>// 翌営業日 5分刻み確率コーン軌道</span></div>'
             '</div>',
             unsafe_allow_html=True
         )
 
+        mark_line_cfg = {}
+        if traj["lunch_idx"] is not None:
+            mark_line_cfg = {
+                "symbol": ["none", "none"],
+                "lineStyle": {"color": "rgba(148,163,184,0.35)", "type": "dashed"},
+                "label": {"formatter": "前場/後場", "color": "#94a3b8", "fontSize": 9, "position": "insideEndTop"},
+                "data": [{"xAxis": traj["lunch_idx"]}]
+            }
+
         series_list = [
             {
                 "name": "想定出来高", "type": "bar", "yAxisIndex": 1, "data": traj["vols"],
-                "itemStyle": {"color": "rgba(148,163,184,0.18)"}, "barMaxWidth": 6
+                "itemStyle": {"color": "rgba(148,163,184,0.16)"}, "barMaxWidth": 5
+            },
+            # 確率コーン塗りつぶし用ベース（透明）
+            {
+                "name": "下限ベース", "type": "line", "yAxisIndex": 0, "data": traj["p15"],
+                "stack": "cone", "lineStyle": {"opacity": 0}, "showSymbol": False, "silent": True
+            },
+            # 確率コーン帯（15%〜85%の半透明ブルー塗りつぶし）
+            {
+                "name": "確率コーン(15-85%)", "type": "line", "yAxisIndex": 0, "data": traj["band_diff"],
+                "stack": "cone", "lineStyle": {"opacity": 0},
+                "areaStyle": {"color": "rgba(56, 189, 248, 0.16)"}, "showSymbol": False, "silent": True
             },
             {
-                "name": "強気レンジ(85%)", "type": "line", "yAxisIndex": 0, "data": traj["p85"],
-                "smooth": False, "lineStyle": {"color": "#10b981", "width": 1.2, "type": "dashed"}, "showSymbol": False
+                "name": "強気上限", "type": "line", "yAxisIndex": 0, "data": traj["p85"],
+                "lineStyle": {"color": "rgba(16,185,129,0.6)", "width": 1.1, "type": "dashed"}, "showSymbol": False
             },
             {
                 "name": "予測中央値", "type": "line", "yAxisIndex": 0, "data": traj["p50"],
-                "smooth": False, "lineStyle": {"color": "#38bdf8", "width": 2.4},
-                "areaStyle": {"color": "rgba(56,189,248,0.10)"}, "showSymbol": False,
+                "lineStyle": {"color": "#38bdf8", "width": 2.4}, "showSymbol": False,
+                "markLine": mark_line_cfg,
                 "markPoint": {
-                    "symbolSize": 36, "label": {"fontSize": 9, "color": "#050811", "fontWeight": "bold"},
+                    "symbolSize": 34, "label": {"fontSize": 9, "color": "#050811", "fontWeight": "bold"},
                     "data": [
                         {"name": "押目", "coord": [traj["dip_idx"], traj["dip_px"]], "value": "押目", "itemStyle": {"color": "#f59e0b"}},
                         {"name": "高値", "coord": [traj["peak_idx"], traj["peak_px"]], "value": "高値", "itemStyle": {"color": "#10b981"}}
@@ -886,11 +939,11 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
                 }
             },
             {
-                "name": "弱気レンジ(15%)", "type": "line", "yAxisIndex": 0, "data": traj["p15"],
-                "smooth": False, "lineStyle": {"color": "#ef4444", "width": 1.2, "type": "dashed"}, "showSymbol": False
+                "name": "弱気下限", "type": "line", "yAxisIndex": 0, "data": traj["p15"],
+                "lineStyle": {"color": "rgba(239,68,68,0.6)", "width": 1.1, "type": "dashed"}, "showSymbol": False
             }
         ]
-        legend_names = ["強気レンジ(85%)", "予測中央値", "弱気レンジ(15%)", "想定出来高"]
+        legend_names = ["予測中央値", "確率コーン(15-85%)", "想定出来高"]
         if traj["has_actual"]:
             series_list.append({"name": "当日実測", "type": "line", "yAxisIndex": 0, "data": traj["actual"], "lineStyle": {"color": "#ffffff", "width": 2.5}, "showSymbol": False})
             legend_names.insert(0, "当日実測")
@@ -900,16 +953,15 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
             "tooltip": {"trigger": "axis"},
             "legend": {"data": legend_names, "textStyle": {"color": "#cbd5e1", "fontSize": 9.5}, "top": 2},
             "grid": {"top": 34, "bottom": 22, "left": 6, "right": 8, "containLabel": True},
-            "xAxis": {"type": "category", "data": traj["slots"], "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+            "xAxis": {"type": "category", "data": traj["slots"], "axisLabel": {"color": "#94a3b8", "fontSize": 9.5, "interval": "auto", "hideOverlap": True}},
             "yAxis": [
                 {"type": "value", "scale": True, "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
                 {"type": "value", "show": False, "max": max(traj["vols"] + [1]) * 4.5}
             ],
             "series": series_list
         }
-        render_echarts(opt_traj, height=310)
+        render_echarts(opt_traj, height=315)
 
-        # 明日・3シナリオ分岐カード
         st.markdown(f"""
         <div class="scenario-grid">
           <div class="scenario-card" style="border-top:3px solid #10b981;">
@@ -927,7 +979,6 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
         </div>
         """, unsafe_allow_html=True)
 
-        # 軌道修正の内訳
         f = traj["factors"]
         st.markdown(f"""
         <div class="dark-box">
@@ -936,16 +987,6 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
           <div class="factor-row"><span>為替（ドル円 {f['fx_diff']:+.2f}% × β{f['fx_beta']:+.2f}）</span><span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['fx_gap_pct']>=0 else '#ef4444'};">{f['fx_gap_pct']:+.2f}%</span></div>
           <div class="factor-row"><span>最新ニュース修正（強気度 {news_res['pos_pct']}%）</span><span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['news_gap_pct']>=0 else '#ef4444'};">{f['news_gap_pct']:+.2f}%</span></div>
           <div class="factor-row"><span>合成・明日寄付き予測 → 大引け予測</span><span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if traj['est_close_chg']>=0 else '#ef4444'};">{traj['est_open_gap_pct']:+.2f}% → {traj['est_close_chg']:+.2f}%</span></div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # 時間帯別・戦術タイムライン
-        st.markdown(f"""
-        <div class="quant-box">
-          <div style="font-size:11px;font-weight:800;color:#6ee7b7;margin-bottom:6px;">TACTICAL TIMELINE // 時間帯別・自動戦術マップ</div>
-          <div class="timeline-item"><b>{traj['slots'][0]} 寄付き:</b> 想定始値 <b>{fmt_currency(traj['est_open_px'], is_jp_flag)}</b>。初動5分の方向確定を待機。</div>
-          <div class="timeline-item" style="border-left-color:#f59e0b;"><b>{traj['dip_time']} 押し目候補:</b> 予測中央値 <b>{fmt_currency(traj['dip_px'], is_jp_flag)}</b>。過去波形上最も押しやすい時間帯。</div>
-          <div class="timeline-item" style="border-left-color:#10b981;"><b>{traj['peak_time']} ピーク想定:</b> 予測中央値 <b>{fmt_currency(traj['peak_px'], is_jp_flag)}</b>。分割利確の目安。</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -989,7 +1030,7 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
             st.caption("ℹ️ この銘柄のEPSサプライズ履歴はyfinanceから取得できませんでした。")
 
     # ---------------------------------------------------------------------
-    # TAB 3: 5軸レーダー ＋ 横棒Volume Profile（仮想板） ＋ 四半期財務
+    # TAB 3: 5軸レーダー ＋ 機関投資家・大口株主グラフ ＋ 仮想板Volume Profile
     # ---------------------------------------------------------------------
     with tab3:
         scores_5 = compute_5axis_scores(info, vp["overhead_pct"], len(gov_risks))
@@ -1005,9 +1046,51 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
             },
             "series": [{"type": "radar", "data": [{"value": scores_5, "name": "総合体力", "itemStyle": {"color": "#38bdf8"}, "areaStyle": {"color": "rgba(56,189,248,0.28)"}}]}]
         }
-        render_echarts(opt_radar, height=230)
+        render_echarts(opt_radar, height=225)
 
-        # 仮想板（抵抗・支持マップ）＋ 横棒Volume Profile
+        # --- 機関投資家・大口株主セクション ---
+        st.markdown("##### 機関投資家・大口株主 保有構成")
+        hb = data["holder_breakdown"]
+        if hb:
+            opt_donut = {
+                "backgroundColor": "#0b1120",
+                "tooltip": {"trigger": "item", "formatter": "{b}: {c}%"},
+                "legend": {"bottom": 2, "textStyle": {"color": "#cbd5e1", "fontSize": 10}},
+                "series": [{
+                    "type": "pie", "radius": ["42%", "68%"], "center": ["50%", "44%"],
+                    "label": {"show": True, "formatter": "{c}%", "color": "#fff", "fontSize": 10},
+                    "data": [
+                        {"value": hb["inst"], "name": "機関投資家", "itemStyle": {"color": "#38bdf8"}},
+                        {"value": hb["insider"], "name": "役員・大株主", "itemStyle": {"color": "#a855f7"}},
+                        {"value": hb["public"], "name": "一般浮動株", "itemStyle": {"color": "#475569"}}
+                    ]
+                }]
+            }
+            render_echarts(opt_donut, height=210)
+
+        inst_h = data["inst_holders"]
+        if inst_h:
+            opt_ih = {
+                "backgroundColor": "#0b1120",
+                "tooltip": {"trigger": "axis"},
+                "grid": {"top": 10, "bottom": 20, "left": 6, "right": 14, "containLabel": True},
+                "xAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5, "formatter": "{value}%"}},
+                "yAxis": {"type": "category", "data": [x["holder"][:18] for x in inst_h][::-1], "axisLabel": {"color": "#e2e8f0", "fontSize": 9.5}},
+                "series": [{"name": "保有比率", "type": "bar", "data": [round(x["pct"], 2) for x in inst_h][::-1], "itemStyle": {"color": "#10b981"}}]
+            }
+            render_echarts(opt_ih, height=195)
+
+            rows_h = "".join([f"<tr><td>{html.escape(x['holder'])}</td><td><b>{x['pct']:.2f}%</b></td><td style='font-family:monospace;'>{x['shares']:,}</td></tr>" for x in inst_h])
+            st.markdown(f'<div class="dark-box"><div class="table-wrap"><table class="data-table"><thead><tr><th>大口機関投資家</th><th>保有比率</th><th>保有株数</th></tr></thead><tbody>{rows_h}</tbody></table></div></div>', unsafe_allow_html=True)
+        else:
+            if is_jp_flag:
+                code4 = fc_code.replace(".T", "")
+                st.caption("ℹ️ 東証銘柄の大口株主一覧はyfinance非対応のため、株探の大株主データから確認できます。")
+                st.link_button(f"🏛️ 株探で {code4} の大株主一覧を見る", f"https://kabutan.jp/stock/holder?code={code4}", use_container_width=True)
+            else:
+                st.caption("ℹ️ 大口機関投資家データを取得できませんでした。")
+
+        # --- 仮想板（抵抗・支持マップ）＋ 横棒Volume Profile ---
         st.markdown(f"""
         <div class="dark-box">
           <b>VIRTUAL ORDERBOOK // 仮想板・抵抗＆支持マップ（1年実測）</b><br>
@@ -1021,62 +1104,56 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
             opt_vp = {
                 "backgroundColor": "#0b1120",
                 "tooltip": {"trigger": "axis"},
-                "grid": {"top": 12, "bottom": 20, "left": 6, "right": 14, "containLabel": True},
+                "grid": {"top": 10, "bottom": 20, "left": 6, "right": 14, "containLabel": True},
                 "xAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
                 "yAxis": {"type": "category", "data": vp["labels"], "axisLabel": {"color": "#cbd5e1", "fontSize": 9.5}},
                 "series": [{"name": "出来高(M)", "type": "bar", "data": vp["vols"], "itemStyle": {"color": "#a855f7"}}]
             }
-            render_echarts(opt_vp, height=250)
-
-        q_fin = data["q_fin"]
-        if q_fin:
-            scale_div = 1e8 if is_jp_flag else 1e9
-            unit_lbl = "億円" if is_jp_flag else "B$"
-            opt_fin = {
-                "backgroundColor": "#0b1120",
-                "tooltip": {"trigger": "axis"},
-                "legend": {"data": [f"売上({unit_lbl})", f"純利益({unit_lbl})"], "textStyle": {"color": "#cbd5e1", "fontSize": 10}, "top": 2},
-                "grid": {"top": 30, "bottom": 20, "left": 6, "right": 10, "containLabel": True},
-                "xAxis": {"type": "category", "data": [x["period"] for x in q_fin], "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
-                "yAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
-                "series": [
-                    {"name": f"売上({unit_lbl})", "type": "bar", "data": [round(x["revenue"]/scale_div, 2) for x in q_fin], "itemStyle": {"color": "#38bdf8"}},
-                    {"name": f"純利益({unit_lbl})", "type": "bar", "data": [round(x["net_income"]/scale_div, 2) for x in q_fin], "itemStyle": {"color": "#10b981"}}
-                ]
-            }
-            render_echarts(opt_fin, height=210)
+            render_echarts(opt_vp, height=240)
 
     # ---------------------------------------------------------------------
-    # TAB 4: センチメント・スピードメーター ＋ ガバナンス ＋ AIメモ
+    # TAB 4: CNN風リアル計器メーター ＋ 自動AIメモ ＋ ガバナンス監査
     # ---------------------------------------------------------------------
     with tab4:
-        memo_key = f"memo_v4_{fc_code}"
-        if st.button("機関投資家向け「1分インベストメントメモ」を生成", use_container_width=True, type="primary"):
-            with st.spinner("全データを統合してメモを作成中..."):
-                m_txt, m_src = generate_investment_memo(corp_name, fc_code, curr_px, is_jp_flag, info, traj, macro_sens, news_res, gov_risks, vp)
-                st.session_state[memo_key] = (m_txt, m_src)
-
-        if memo_key in st.session_state:
-            m_txt, m_src = st.session_state[memo_key]
-            st.markdown(f'<div class="memo-box"><div style="font-size:10.5px;color:#c084fc;font-weight:800;margin-bottom:5px;">{html.escape(m_src)}</div>{html.escape(m_txt).replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
-
-        # センチメント・スピードメーター（ゲージチャート）
+        # 1. 多層アナログ計器メーター（CNN Fear & Greed風）
         opt_gauge = {
             "backgroundColor": "#0b1120",
             "series": [{
-                "type": "gauge", "startAngle": 180, "endAngle": 0, "min": 0, "max": 100,
-                "center": ["50%", "76%"], "radius": "115%",
-                "axisLine": {"lineStyle": {"width": 14, "color": [[0.35, "#ef4444"], [0.65, "#38bdf8"], [1, "#10b981"]]}},
-                "pointer": {"length": "55%", "width": 5, "itemStyle": {"color": "#ffffff"}},
-                "axisTick": {"show": False}, "splitLine": {"show": False},
-                "axisLabel": {"show": False},
-                "title": {"offsetCenter": [0, "-15%"], "fontSize": 11, "color": "#94a3b8"},
-                "detail": {"fontSize": 22, "offsetCenter": [0, "12%"], "valueAnimation": True, "color": "#ffffff", "formatter": "{value}"},
-                "data": [{"value": news_res["gauge_val"], "name": "NEWS SENTIMENT"}]
+                "type": "gauge", "startAngle": 180, "endAngle": 0, "min": 0, "max": 100, "splitNumber": 5,
+                "center": ["50%", "74%"], "radius": "112%",
+                "axisLine": {
+                    "lineStyle": {
+                        "width": 16,
+                        "color": [[0.2, "#dc2626"], [0.4, "#f97316"], [0.6, "#38bdf8"], [0.8, "#10b981"], [1.0, "#059669"]]
+                    }
+                },
+                "pointer": {
+                    "icon": "path://M12.8,0.7l12,40.1H0.7L12.8,0.7z",
+                    "length": "52%", "width": 10, "offsetCenter": [0, "-12%"],
+                    "itemStyle": {"color": "#f8fafc", "shadowBlur": 8, "shadowColor": "rgba(56,189,248,0.8)"}
+                },
+                "anchor": {"show": True, "showAbove": True, "size": 14, "itemStyle": {"color": "#38bdf8", "borderWidth": 2, "borderColor": "#fff"}},
+                "axisTick": {"length": 6, "lineStyle": {"color": "auto", "width": 1.5}},
+                "splitLine": {"length": 12, "lineStyle": {"color": "auto", "width": 2.5}},
+                "axisLabel": {"color": "#94a3b8", "fontSize": 9.5, "distance": -36},
+                "title": {"offsetCenter": [0, "18%"], "fontSize": 10.5, "color": "#7dd3fc", "fontWeight": "bold"},
+                "detail": {"fontSize": 26, "fontWeight": "bold", "offsetCenter": [0, "-3%"], "valueAnimation": True, "color": "#ffffff", "formatter": "{value}"},
+                "data": [{"value": comp_score, "name": meter_lbl}]
             }]
         }
-        render_echarts(opt_gauge, height=185)
+        render_echarts(opt_gauge, height=225)
 
+        # 2. 自動生成 1分インベストメントメモ（ボタン廃止・完全自動）
+        top_m = macro_sens[0] if macro_sens else {"label": "市場指数", "corr": 0.0, "beta": 1.0}
+        m_txt, m_src = generate_auto_investment_memo(
+            fc_code, corp_name, fmt_currency(curr_px, is_jp_flag),
+            traj["est_open_gap_pct"], traj["est_close_chg"], traj["dip_time"], traj["peak_time"],
+            vp["overhead_pct"], top_m["label"], top_m["corr"], top_m["beta"],
+            news_res["pos_pct"], len(gov_risks), upside_str
+        )
+        st.markdown(f'<div class="memo-box"><div style="font-size:10.5px;color:#c084fc;font-weight:800;margin-bottom:5px;">{html.escape(m_src)}</div>{html.escape(m_txt).replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
+
+        # 3. ガバナンス監査 ＆ ニュースヘッドライン
         if gov_risks:
             risk_html = "<br>".join([f"・{html.escape(x)}" for x in gov_risks])
             st.markdown(f'<div class="warning-box"><b>ガバナンス・不祥事・訴訟関連ヒット ({len(gov_risks)}件)</b><br>{risk_html}</div>', unsafe_allow_html=True)
@@ -1090,7 +1167,6 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
                 n_html += f'<div style="margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.12);"><span style="color:{badge_c};font-weight:800;font-size:10px;">[{it["sent"]}]</span> <a href="{html.escape(it["link"])}" target="_blank" style="color:#e2e8f0;text-decoration:none;font-weight:600;">{html.escape(it["title"])}</a> <span style="color:#64748b;font-size:10px;">({html.escape(it["pub"])})</span></div>'
             st.markdown(f'<div class="dark-box"><b>最新ニュースヘッドライン ＆ 感情判定</b><br><br>{n_html}</div>', unsafe_allow_html=True)
 
-# Streamlitのバージョンに応じて自動ライブ更新（@st.fragment）を有効化
 if hasattr(st, "fragment"):
     @st.fragment(run_every="30s")
     def _auto_live_runner():
