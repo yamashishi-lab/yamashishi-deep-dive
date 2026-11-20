@@ -19,7 +19,7 @@ import xml.etree.ElementTree as ET
 LAB_APP_URL = "https://your-yamashishi-lab.streamlit.app/"
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE v2 [QUANTUM TERMINAL]",
+    page_title="YAMASHISHI DEEP DIVE v3 [QUANTUM TERMINAL]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -85,6 +85,57 @@ def inject_css():
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
         border: 1px solid rgba(148, 163, 184, 0.22);
         border-left: 5px solid #38bdf8;
+    }
+    .trajectory-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.4) 100%);
+        border-left: 3px solid #38bdf8;
+        border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 4px;
+        flex-wrap: wrap;
+    }
+    .trajectory-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: #f8fafc;
+        white-space: nowrap;
+    }
+    .trajectory-title span {
+        color: #38bdf8;
+        font-weight: 500;
+    }
+    .live-pill {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        color: #6ee7b7;
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        padding: 2px 8px;
+        border-radius: 99px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .live-dot {
+        width: 6px;
+        height: 6px;
+        background: #10b981;
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse-green 1.8s infinite;
+    }
+    @keyframes pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8); }
+        70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
     .winrate-bar {
         display: grid;
@@ -163,6 +214,26 @@ def inject_css():
         line-height: 1.75;
         color: #f1f5f9;
     }
+    .factor-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        font-size: 12px;
+    }
+    .factor-row:last-child {
+        border-bottom: none;
+        padding-top: 7px;
+        font-weight: 800;
+    }
+    .timeline-item {
+        border-left: 2px solid #38bdf8;
+        padding-left: 10px;
+        margin-bottom: 8px;
+        font-size: 12px;
+        line-height: 1.55;
+    }
     .data-table {
         width: 100%;
         border-collapse: collapse;
@@ -194,19 +265,6 @@ def fmt_currency(val, is_jp: bool) -> str:
         return "-"
     return f"{val:,.0f}円" if is_jp else f"${val:,.2f}"
 
-def fmt_large_num(val, is_jp: bool) -> str:
-    if not val or (isinstance(val, float) and np.isnan(val)):
-        return "-"
-    if is_jp:
-        if abs(val) >= 1e12: return f"{val/1e12:.2f}兆円"
-        if abs(val) >= 1e8:  return f"{val/1e8:,.0f}億円"
-        return f"{val:,.0f}円"
-    else:
-        if abs(val) >= 1e12: return f"${val/1e12:.2f}T"
-        if abs(val) >= 1e9:  return f"${val/1e9:.2f}B"
-        if abs(val) >= 1e6:  return f"${val/1e6:.1f}M"
-        return f"${val:,.0f}"
-
 def get_gemini_api_key() -> str:
     k = os.environ.get("GEMINI_API_KEY", "")
     if not k:
@@ -216,7 +274,7 @@ def get_gemini_api_key() -> str:
             k = ""
     return str(k).strip()
 
-def render_echarts(option_dict: dict, height: int = 280):
+def render_echarts(option_dict: dict, height: int = 300):
     opt_json = json.dumps(option_dict, ensure_ascii=False)
     html_code = f"""
     <!DOCTYPE html><html><head><meta charset="UTF-8">
@@ -243,7 +301,7 @@ MACRO_TICKERS = {
     "VIX": ("^VIX", "VIX恐怖指数"),
 }
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=180)
 def load_macro_data() -> dict:
     codes = [v[0] for v in MACRO_TICKERS.values()]
     out = {}
@@ -265,7 +323,7 @@ def load_macro_data() -> dict:
         pass
     return out
 
-@st.cache_data(ttl=180)
+@st.cache_data(ttl=120)
 def load_stock_core(code: str) -> dict:
     tkr = yf.Ticker(code)
     df_1d = tkr.history(period="1y", interval="1d", auto_adjust=True)
@@ -273,12 +331,16 @@ def load_stock_core(code: str) -> dict:
         df_1d.index = pd.to_datetime(df_1d.index).tz_localize(None).normalize()
         df_1d = df_1d[~df_1d.index.duplicated(keep="last")]
 
+    # 過去30日の5分足（イントラデイ時間帯クセ抽出 ＆ 場中実測用）
+    df_5m = tkr.history(period="1mo", interval="5m", auto_adjust=True)
+    if df_5m is not None and not df_5m.empty:
+        df_5m = df_5m.dropna(subset=["Close"]).copy()
+
     try:
         info = tkr.info or {}
     except Exception:
         info = {}
 
-    # 四半期財務
     q_fin = []
     try:
         qf = tkr.quarterly_financials
@@ -295,7 +357,6 @@ def load_stock_core(code: str) -> dict:
     except Exception:
         pass
 
-    # 決算サプライズ履歴
     earnings_hist = []
     try:
         ed = tkr.earnings_dates
@@ -310,7 +371,6 @@ def load_stock_core(code: str) -> dict:
     except Exception:
         pass
 
-    # 機関投資家保有
     inst_holders = []
     try:
         ih = tkr.institutional_holders
@@ -324,21 +384,6 @@ def load_stock_core(code: str) -> dict:
     except Exception:
         pass
 
-    # インサイダー売買
-    insiders = []
-    try:
-        itx = tkr.insider_transactions
-        if itx is not None and not itx.empty:
-            for _, row in itx.head(5).iterrows():
-                insiders.append({
-                    "insider": str(row.get("Insider", "-")),
-                    "text": str(row.get("Text", row.get("Transaction", "-"))),
-                    "shares": int(row.get("Shares", 0)) if pd.notna(row.get("Shares")) else 0
-                })
-    except Exception:
-        pass
-
-    # オプション
     opt_data = None
     try:
         exps = tkr.options
@@ -357,12 +402,11 @@ def load_stock_core(code: str) -> dict:
         pass
 
     return {
-        "df_1d": df_1d, "info": info, "q_fin": q_fin,
-        "earnings_hist": earnings_hist, "inst_holders": inst_holders,
-        "insiders": insiders, "opt_data": opt_data
+        "df_1d": df_1d, "df_5m": df_5m, "info": info, "q_fin": q_fin,
+        "earnings_hist": earnings_hist, "inst_holders": inst_holders, "opt_data": opt_data
     }
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=180)
 def fetch_news_and_sentiment(query: str) -> dict:
     headers = {"User-Agent": "Mozilla/5.0"}
     items_out = []
@@ -389,7 +433,6 @@ def fetch_news_and_sentiment(query: str) -> dict:
         pass
 
     tot = max(pos_c + neu_c + neg_c, 1)
-    # -1.0 (極端な弱気) ～ +1.0 (極端な強気) のショック係数
     shock_score = round((pos_c - neg_c) / tot, 2)
     return {
         "items": items_out, "pos_pct": round(pos_c / tot * 100),
@@ -416,7 +459,7 @@ def fetch_governance_risks(company_name: str) -> list:
     return risks
 
 # =========================================================================
-# 4. アルゴリズム計算エンジン（マクロβ・モンテカルロ未来予測・しこり玉）
+# 4. 翌営業日 1日完全軌道アルゴリズム（全自動リアルタイム算出）
 # =========================================================================
 def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
     s_ret = stock_close.pct_change().dropna().tail(90)
@@ -438,65 +481,126 @@ def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
     results.sort(key=lambda x: abs(x["corr"]), reverse=True)
     return results
 
-def run_monte_carlo_forecast(
-    curr_px: float, df_1d: pd.DataFrame, macro_sens: list, news_shock: float,
-    tp_px: float, sl_px: float, whatif_mkt_pct: float = 0.0, whatif_fx_pct: float = 0.0,
-    whatif_news_shock: float = 0.0, days: int = 5, n_sims: int = 600
+def build_next_session_trajectory(
+    curr_px: float, df_1d: pd.DataFrame, df_5m: pd.DataFrame,
+    macro_sens: list, news_res: dict, is_jp: bool, tp_px: float, sl_px: float
 ) -> dict:
-    rets = df_1d["Close"].pct_change().dropna().tail(60).values
-    hist_mu = float(np.mean(rets)) if len(rets) > 5 else 0.0
-    hist_sigma = float(np.std(rets)) if len(rets) > 5 else 0.02
-    hist_sigma = float(np.clip(hist_sigma, 0.008, 0.08))
+    # 1. セッション時間軸の生成（東証: 09:00-11:30 & 12:30-15:30 / 米国: 09:30-16:00）
+    if is_jp:
+        am = [f"{h:02d}:{m:02d}" for h in range(9, 12) for m in range(0, 60, 15) if not (h == 11 and m > 30)]
+        pm = [f"{h:02d}:{m:02d}" for h in range(12, 16) for m in range(0, 60, 15) if not (h == 12 and m < 30) and not (h == 15 and m > 30)]
+        slots = am + pm
+    else:
+        slots = [f"{h:02d}:{m:02d}" for h in range(9, 17) for m in range(0, 60, 15) if not (h == 9 and m < 30) and not (h == 16 and m > 0)]
 
-    # 1. マクロ連動のリアルタイム・ドリフト算出（上位2相関指標＋ドル円）
+    n_slots = len(slots)
+
+    # 2. 過去5分足から「銘柄固有の時間帯クセ（平均リターン＆ボラ）」を抽出
+    slot_means = np.zeros(n_slots)
+    slot_stds = np.full(n_slots, 0.003)
+    actual_today_map = {}
+
+    if df_5m is not None and not df_5m.empty:
+        tmp = df_5m.copy()
+        idx_dt = pd.to_datetime(tmp.index)
+        tmp["_d"] = idx_dt.strftime("%Y-%m-%d")
+        tmp["_hm"] = idx_dt.strftime("%H:%M")
+
+        # 過去日の平均イントラデイ波形（始値比%）を算出
+        day_groups = []
+        unique_days = sorted(tmp["_d"].unique().tolist())
+        for d_str in unique_days[:-1]:  # 最新日を除く過去日でクセを学習
+            sub = tmp[tmp["_d"] == d_str]
+            if len(sub) < 5: continue
+            open_p = float(sub["Open"].iloc[0])
+            if open_p <= 0: continue
+            day_map = {}
+            for _, row in sub.iterrows():
+                hm = row["_hm"]
+                if hm in slots:
+                    day_map[hm] = (float(row["Close"]) - open_p) / open_p
+            if day_map:
+                day_groups.append(day_map)
+
+        for i, sl in enumerate(slots):
+            vals = [dg[sl] for dg in day_groups if sl in dg]
+            if len(vals) >= 3:
+                slot_means[i] = float(np.mean(vals))
+                slot_stds[i] = max(float(np.std(vals)), 0.0025)
+            else:
+                # データ不足時は時間経過に応じた緩やかな標準偏差
+                slot_stds[i] = 0.003 + 0.010 * np.sqrt((i + 1) / n_slots)
+
+        # 最新日の実測値（場中答え合わせ用：今日の日付と一致する場合のみ重ね描き）
+        today_jst = datetime.datetime.now().strftime("%Y-%m-%d")
+        if unique_days and unique_days[-1] == today_jst:
+            sub_t = tmp[tmp["_d"] == today_jst]
+            for _, row in sub_t.iterrows():
+                if row["_hm"] in slots:
+                    actual_today_map[row["_hm"]] = round(float(row["Close"]), 2)
+
+    # 3. マクロβ ＆ 最新ニュースによる「寄り付きギャップ」と「日中ドリフト」の自動算出
     sens_map = {x["key"]: x for x in macro_sens}
-    mkt_key = "SOX" if "SOX" in sens_map and abs(sens_map["SOX"]["corr"]) > 0.35 else ("N225" if "N225" in sens_map else "SP500")
-    mkt_beta = sens_map.get(mkt_key, {}).get("beta", 0.5)
-    fx_beta = sens_map.get("USDJPY", {}).get("beta", 0.0)
+    mkt_key = "SOX" if ("SOX" in sens_map and abs(sens_map["SOX"]["corr"]) > 0.35) else ("N225" if "N225" in sens_map else "SP500")
+    mkt_info = sens_map.get(mkt_key, {"label": "市場指数", "beta": 0.5, "latest_diff": 0.0})
+    fx_info = sens_map.get("USDJPY", {"label": "ドル円", "beta": 0.0, "latest_diff": 0.0})
 
-    live_mkt_shift = (sens_map.get(mkt_key, {}).get("latest_diff", 0.0) / 100.0) * mkt_beta * 0.45
-    whatif_shift = (whatif_mkt_pct / 100.0) * mkt_beta + (whatif_fx_pct / 100.0) * fx_beta
+    macro_gap_pct = (mkt_info["latest_diff"] * mkt_info["beta"]) * 0.45
+    fx_gap_pct = (fx_info["latest_diff"] * fx_info["beta"]) * 0.35
+    news_gap_pct = news_res["shock_score"] * 0.85
 
-    # 2. ニュース感情ショック（Day+1に強く反映し、徐々に減衰）
-    total_news_shock = np.clip(news_shock + whatif_news_shock, -1.5, 1.5)
-    news_day1_shift = total_news_shock * hist_sigma * 0.85
+    total_open_gap_pct = float(np.clip(macro_gap_pct + fx_gap_pct + news_gap_pct, -5.0, 5.0))
+    est_open_px = curr_px * (1.0 + total_open_gap_pct / 100.0)
 
-    # ニュースが大きい時はボラティリティも拡大
-    eff_sigma = hist_sigma * (1.0 + abs(total_news_shock) * 0.25)
+    # 日中トレンドの傾き（ニュースとマクロの追い風を日中にも緩やかに反映）
+    intraday_drift_total = float(np.clip((news_res["shock_score"] * 0.006) + (macro_gap_pct / 100.0 * 0.15), -0.02, 0.02))
+    vol_boost = 1.0 + abs(news_res["shock_score"]) * 0.30
 
-    # 3. モンテカルロ・シミュレーション（固定シードでスライダー操作時のチラつき防止）
-    rng = np.random.default_rng(42)
-    paths = np.zeros((n_sims, days + 1))
-    paths[:, 0] = curr_px
-    for d in range(1, days + 1):
-        shock_d = (live_mkt_shift + whatif_shift + news_day1_shift) if d == 1 else (news_day1_shift * (0.35 ** (d - 1)))
-        z = rng.standard_normal(n_sims)
-        step_ret = hist_mu + shock_d + eff_sigma * z
-        paths[:, d] = np.maximum(paths[:, d - 1] * (1.0 + step_ret), curr_px * 0.3)
+    p50_arr, p85_arr, p15_arr, actual_arr = [], [], [], []
+    for i, sl in enumerate(slots):
+        frac = i / max(n_slots - 1, 1)
+        mid = est_open_px * (1.0 + slot_means[i] + intraday_drift_total * frac)
+        band = est_open_px * slot_stds[i] * vol_boost * 1.15
+        p50_arr.append(round(float(mid), 2))
+        p85_arr.append(round(float(mid + band), 2))
+        p15_arr.append(round(float(max(mid - band, curr_px * 0.5)), 2))
+        actual_arr.append(actual_today_map.get(sl, None))
 
-    p90 = np.percentile(paths, 85, axis=0)
-    p50 = np.percentile(paths, 50, axis=0)
-    p10 = np.percentile(paths, 15, axis=0)
-
-    # TP / SL 到達確率（5営業日以内）
-    hit_tp_prob = float(np.mean(np.max(paths[:, 1:], axis=1) >= tp_px)) * 100.0
-    hit_sl_prob = float(np.mean(np.min(paths[:, 1:], axis=1) <= sl_px)) * 100.0
+    # 4. 予測波形から「押し目候補時刻」と「ピーク想定時刻」を自動抽出
+    idx_min = int(np.argmin(p50_arr))
+    idx_max = int(np.argmax(p50_arr))
+    est_close_px = p50_arr[-1]
+    est_close_chg = round((est_close_px - curr_px) / max(curr_px, 1e-4) * 100.0, 2)
 
     return {
-        "p90": [round(float(x), 2) for x in p90],
-        "p50": [round(float(x), 2) for x in p50],
-        "p10": [round(float(x), 2) for x in p10],
-        "day1_p50": float(p50[1]),
-        "day1_chg": round((float(p50[1]) - curr_px) / max(curr_px, 1e-4) * 100.0, 2),
-        "hit_tp_prob": round(hit_tp_prob, 1),
-        "hit_sl_prob": round(hit_sl_prob, 1),
-        "mkt_driver_lbl": sens_map.get(mkt_key, {}).get("label", "市場指数"),
-        "mkt_beta": mkt_beta,
-        "eff_sigma_pct": round(eff_sigma * 100.0, 2)
+        "slots": slots,
+        "p50": p50_arr,
+        "p85": p85_arr,
+        "p15": p15_arr,
+        "actual": actual_arr,
+        "has_actual": any(x is not None for x in actual_arr),
+        "est_open_px": est_open_px,
+        "est_open_gap_pct": round(total_open_gap_pct, 2),
+        "est_close_px": est_close_px,
+        "est_close_chg": est_close_chg,
+        "dip_time": slots[idx_min],
+        "dip_px": p50_arr[idx_min],
+        "peak_time": slots[idx_max],
+        "peak_px": p50_arr[idx_max],
+        "factors": {
+            "mkt_label": mkt_info["label"],
+            "mkt_diff": mkt_info["latest_diff"],
+            "mkt_beta": mkt_info["beta"],
+            "macro_gap_pct": round(macro_gap_pct, 2),
+            "fx_diff": fx_info["latest_diff"],
+            "fx_beta": fx_info["beta"],
+            "fx_gap_pct": round(fx_gap_pct, 2),
+            "news_shock": news_res["shock_score"],
+            "news_gap_pct": round(news_gap_pct, 2),
+        }
     }
 
 def compute_overhead_supply(df_1d: pd.DataFrame, curr_px: float) -> dict:
-    """過去1年の価格帯別出来高から「現在値より上のしこり玉比率」を算出"""
     sub = df_1d.tail(250)
     if len(sub) < 20:
         return {"overhead_pct": 0.0, "poc_px": curr_px}
@@ -510,14 +614,14 @@ def compute_overhead_supply(df_1d: pd.DataFrame, curr_px: float) -> dict:
     poc_px = float((bins[poc_idx] + bins[poc_idx + 1]) * 0.5)
     return {"overhead_pct": round(above_v / tot_v * 100.0, 1), "poc_px": poc_px}
 
-def generate_investment_memo(corp_name: str, fc: str, curr_px: float, is_jp: bool, info: dict, fcst: dict, macro_sens: list, news_res: dict, gov_risks: list, ovh: dict) -> tuple:
+def generate_investment_memo(corp_name: str, fc: str, curr_px: float, is_jp: bool, info: dict, traj: dict, macro_sens: list, news_res: dict, gov_risks: list, ovh: dict) -> tuple:
     api_key = get_gemini_api_key()
     prompt = f"""あなたはヘッジファンドのシニア・エクイティアナリストです。以下の実測データに基づき、ファンドマネージャー向けの「1分インベストメントメモ」を日本語で簡潔に作成してください。
 銘柄: {corp_name} ({fc}) / 現在値: {fmt_currency(curr_px, is_jp)}
-PER: {info.get('trailingPE')} / PBR: {info.get('priceToBook')} / EV/EBITDA: {info.get('enterpriseToEbitda')} / 目標株価平均: {info.get('targetMeanPrice')}
-明日予測中央値: {fcst['day1_chg']:+.2f}% / 5日以内利確到達率: {fcst['hit_tp_prob']}% / 上値しこり玉比率: {ovh['overhead_pct']}%
+翌営業日予測: 寄付き {traj['est_open_gap_pct']:+.2f}% / 大引け予測 {traj['est_close_chg']:+.2f}% / 押し目想定 {traj['dip_time']} / ピーク想定 {traj['peak_time']}
+PER: {info.get('trailingPE')} / EV/EBITDA: {info.get('enterpriseToEbitda')} / 目標株価平均: {info.get('targetMeanPrice')} / 上値しこり玉: {ovh['overhead_pct']}%
 最大マクロ連動: {macro_sens[0]['label'] if macro_sens else '-'} (相関 {macro_sens[0]['corr'] if macro_sens else 0})
-ニュース強気度: {news_res['pos_pct']}% / ガバナンスリスク検知数: {len(gov_risks)}件
+ニュース強気度: {news_res['pos_pct']}% / ガバナンスリスク検知: {len(gov_risks)}件
 
 以下の3セクション構成（合計400文字以内、箇条書き）で出力してください：
 🟢 Bull Case（強気シナリオ）
@@ -538,13 +642,12 @@ PER: {info.get('trailingPE')} / PBR: {info.get('priceToBook')} / EV/EBITDA: {inf
             except Exception:
                 continue
 
-    # API未接続時の自動ルールベース・メモ
     top_m = macro_sens[0] if macro_sens else {"label": "市場指数", "corr": 0.0, "beta": 1.0}
     target_m = info.get("targetMeanPrice")
     upside_s = f"{(target_m/curr_px - 1)*100:+.1f}%" if target_m else "算出不可"
-    bull = f"・アナリスト目標株価との乖離は {upside_s}、5日以内の利確目安到達確率は {fcst['hit_tp_prob']}%。\n・ニュース強気度 {news_res['pos_pct']}%、上値しこり玉は {ovh['overhead_pct']}%。"
-    bear = f"・{top_m['label']}との相関係数が {top_m['corr']}（β={top_m['beta']}）と高く、マクロ急変時の連れ安リスクあり。\n・ガバナンス関連報道は {len(gov_risks)}件検知（{'要精査' if gov_risks else '現時点でクリーン'}）。"
-    cat = f"・翌営業日の予測中央値は {fcst['day1_chg']:+.2f}%。{top_m['label']}の夜間動向と出来高急増の有無が直近のトリガー。"
+    bull = f"・アナリスト目標株価との乖離は {upside_s}、翌営業日の大引け予測は {traj['est_close_chg']:+.2f}%。\n・ニュース強気度 {news_res['pos_pct']}%、上値しこり玉は {ovh['overhead_pct']}%。"
+    bear = f"・{top_m['label']}との相関係数が {top_m['corr']}（β={top_m['beta']}）と高く、夜間マクロ急変時の連れ安リスクあり。\n・ガバナンス関連報道は {len(gov_risks)}件検知（{'要精査' if gov_risks else '現時点でクリーン'}）。"
+    cat = f"・明日は {traj['dip_time']} 頃の押し目反発と {traj['peak_time']} 頃のピーク形成が焦点。{top_m['label']}の動向を監視。"
     return f"🟢 Bull Case（強気シナリオ）\n{bull}\n\n🔴 Bear Case（弱気・死角リスク）\n{bear}\n\n⚡ Next Catalyst（次の注目トリガー）\n{cat}", "⚙️ クオンツ自動ルール生成（Gemini API未設定時）"
 
 # =========================================================================
@@ -554,8 +657,8 @@ h_col1, h_col2 = st.columns([3.2, 1.2])
 with h_col1:
     st.markdown(
         '<div class="glass-header" style="margin-bottom:8px;">'
-        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v2</div>'
-        '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">未来予測モンテカルロ × マクロβ感応度 × 機関投資家ディープ監査</div>'
+        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v3</div>'
+        '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">翌営業日1日完全軌道アルゴリズム × マクロβ × 機関投資家ディープ監査</div>'
         '</div>',
         unsafe_allow_html=True
     )
@@ -569,22 +672,23 @@ query_code = str(qp_code[0] if isinstance(qp_code, list) else qp_code).strip().u
 qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
-c1, c2, c3 = st.columns([2.2, 1.5, 1.0])
+c1, c2, c3 = st.columns([2.1, 1.4, 1.1])
 in_code = c1.text_input("銘柄コード", value=query_code, placeholder="例: NVDA / 6920", label_visibility="collapsed")
 in_style = c2.selectbox("スタイル", STYLES, index=STYLES.index(query_style) if query_style in STYLES else 0, label_visibility="collapsed")
-c3.button("⚡ 極限解析", use_container_width=True, type="primary")
+if c3.button("🔄 最新同期", use_container_width=True, type="primary"):
+    st.cache_data.clear()
+    st.rerun()
 
 fc = in_code.strip().upper()
 if not fc: st.stop()
 if re.match(r"^[0-9]{3}[0-9A-Z]$", fc): fc = f"{fc}.T"
 is_jp = fc.endswith(".T")
 
-with st.spinner(f"📡 【{fc}】の市場データ・マクロ指標・財務・ニュースを統合スキャン中..."):
+with st.spinner(f"📡 【{fc}】の5分足クセ・最新マクロ・ニュースをリアルタイム統合中..."):
     data = load_stock_core(fc)
     macro_data = load_macro_data()
 
-df_1d = data["df_1d"]
-info = data["info"]
+df_1d, df_5m, info = data["df_1d"], data["df_5m"], data["info"]
 if df_1d is None or df_1d.empty:
     st.error(f"❌ 銘柄コード `{fc}` の市場データを取得できませんでした。")
     st.stop()
@@ -610,9 +714,7 @@ macro_sens = compute_macro_sensitivity(df_1d["Close"], macro_data)
 news_res = fetch_news_and_sentiment(f"{corp_name} OR {fc.replace('.T', '')} 株価")
 gov_risks = fetch_governance_risks(corp_name)
 ovh_data = compute_overhead_supply(df_1d, curr_px)
-
-# ベース予測（スライダー初期値）
-base_fcst = run_monte_carlo_forecast(curr_px, df_1d, macro_sens, news_res["shock_score"], tp_px, sl_px)
+traj = build_next_session_trajectory(curr_px, df_1d, df_5m, macro_sens, news_res, is_jp, tp_px, sl_px)
 
 # =========================================================================
 # 6. トップ企業カード ＆ 4大サマリー（常時表示）
@@ -621,7 +723,7 @@ target_mean = info.get("targetMeanPrice")
 upside_str = f"{((target_mean - curr_px)/curr_px*100):+.1f}%" if (target_mean and curr_px > 0) else "-"
 risk_status = f"⚠️ {len(gov_risks)}件検知" if gov_risks else "🟢 クリーン"
 risk_col = "#f87171" if gov_risks else "#10b981"
-d1_col = "#10b981" if base_fcst["day1_chg"] >= 0 else "#ef4444"
+open_col = "#10b981" if traj["est_open_gap_pct"] >= 0 else "#ef4444"
 
 st.markdown(f"""
 <div class="rank-card">
@@ -641,77 +743,91 @@ st.markdown(f"""
     </div>
   </div>
   <div class="winrate-bar">
-    <div><div class="metric-lbl">🔮 明日予測中央値</div><div class="metric-val" style="color:{d1_col};">{base_fcst['day1_chg']:+.2f}%</div></div>
-    <div><div class="metric-lbl">🎯 アナリスト目標乖離</div><div class="metric-val" style="color:#fde047;">{upside_str}</div></div>
-    <div><div class="metric-lbl">🧱 上値しこり玉比率</div><div class="metric-val" style="color:#c084fc;">{ovh_data['overhead_pct']}%</div></div>
-    <div><div class="metric-lbl">🚨 ガバナンス監査</div><div class="metric-val" style="color:{risk_col};">{risk_status}</div></div>
+    <div><div class="metric-lbl">明日寄付き予測</div><div class="metric-val" style="color:{open_col};">{traj['est_open_gap_pct']:+.2f}%</div></div>
+    <div><div class="metric-lbl">アナリスト目標乖離</div><div class="metric-val" style="color:#fde047;">{upside_str}</div></div>
+    <div><div class="metric-lbl">上値しこり玉比率</div><div class="metric-val" style="color:#c084fc;">{ovh_data['overhead_pct']}%</div></div>
+    <div><div class="metric-lbl">ガバナンス監査</div><div class="metric-val" style="color:{risk_col};">{risk_status}</div></div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 # =========================================================================
-# 7. 4タブ集約ビュー（メイン：未来予測ファンチャート）
+# 7. 4タブ集約ビュー（メイン：翌営業日1日完全軌道）
 # =========================================================================
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🔮 未来予測チャート",
-    "🌐 マクロβ・決算",
-    "💰 プロ財務・需給",
-    "🚨 リスク・AIメモ"
+    "翌営業日 1日軌道",
+    "マクロβ・決算",
+    "プロ財務・需給",
+    "リスク・AIメモ"
 ])
 
 # -------------------------------------------------------------------------
-# TAB 1: リアルタイム未来予測ファンチャート ＆ What-if ストレステスト
+# TAB 1: 翌営業日 1日軌道リアルタイム予測（全自動）
 # -------------------------------------------------------------------------
 with tab1:
-    st.markdown("##### 🎛️ What-if ストレステスト（今夜の急変をリアルタイム反映）")
-    wc1, wc2, wc3 = st.columns(3)
-    w_mkt = wc1.slider(f"📊 {base_fcst['mkt_driver_lbl']} (%)", -5.0, 5.0, 0.0, 0.5)
-    w_fx  = wc2.slider("💴 ドル円変動 (%)", -3.0, 3.0, 0.0, 0.25)
-    w_nws = wc3.slider("📰 突発ニュース衝撃", -1.0, 1.0, 0.0, 0.2)
+    sync_ts = datetime.datetime.now().strftime("%H:%M")
+    st.markdown(f"""
+    <div class="trajectory-header">
+      <div class="trajectory-title">NEXT SESSION TRAJECTORY <span>// 翌営業日 1日軌道リアルタイム予測</span></div>
+      <div class="live-pill"><span class="live-dot"></span>AUTO-SYNC {sync_ts}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    fcst = run_monte_carlo_forecast(
-        curr_px, df_1d, macro_sens, news_res["shock_score"], tp_px, sl_px,
-        whatif_mkt_pct=w_mkt, whatif_fx_pct=w_fx, whatif_news_shock=w_nws
-    )
+    series_list = [
+        {"name": "強気レンジ(85%)", "type": "line", "data": traj["p85"], "smooth": True, "lineStyle": {"color": "#10b981", "width": 1.5, "type": "dashed"}, "showSymbol": False},
+        {"name": "予測中央値", "type": "line", "data": traj["p50"], "smooth": True, "lineStyle": {"color": "#38bdf8", "width": 3.0}, "areaStyle": {"color": "rgba(56,189,248,0.12)"}, "showSymbol": False},
+        {"name": "弱気レンジ(15%)", "type": "line", "data": traj["p15"], "smooth": True, "lineStyle": {"color": "#ef4444", "width": 1.5, "type": "dashed"}, "showSymbol": False},
+        {"name": "前日終値", "type": "line", "data": [round(curr_px, 2)] * len(traj["slots"]), "lineStyle": {"color": "rgba(148,163,184,0.45)", "type": "dotted", "width": 1.2}, "showSymbol": False}
+    ]
+    legend_names = ["強気レンジ(85%)", "予測中央値", "弱気レンジ(15%)", "前日終値"]
 
-    # 過去15営業日（実測）＋ 未来5営業日（確率コーン）を結合
-    hist_tail = df_1d.tail(15)
-    hist_dates = [d.strftime("%m/%d") for d in hist_tail.index]
-    hist_vals = [round(float(x), 2) for x in hist_tail["Close"].values]
-    fut_labels = ["明日(+1d)", "+2d", "+3d", "+4d", "+5d"]
-    all_x = hist_dates + fut_labels
+    if traj["has_actual"]:
+        series_list.insert(0, {"name": "当日実測", "type": "line", "data": traj["actual"], "lineStyle": {"color": "#ffffff", "width": 2.8}, "showSymbol": True, "symbolSize": 4})
+        legend_names.insert(0, "当日実測")
 
-    n_hist = len(hist_vals)
-    pad_none = [None] * (n_hist - 1)
-    series_actual = hist_vals + [None] * 5
-    series_p90 = pad_none + fcst["p90"]
-    series_p50 = pad_none + fcst["p50"]
-    series_p10 = pad_none + fcst["p10"]
-
-    opt_fan = {
+    opt_traj = {
         "backgroundColor": "#0b1120",
         "tooltip": {"trigger": "axis"},
-        "legend": {"data": ["実測終値", "強気軌道(85%)", "予測中央値(50%)", "弱気軌道(15%)"], "textStyle": {"color": "#cbd5e1", "fontSize": 10}, "top": 4},
-        "grid": {"top": 34, "bottom": 26, "left": 58, "right": 18},
-        "xAxis": {"type": "category", "data": all_x, "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
+        "legend": {"data": legend_names, "textStyle": {"color": "#cbd5e1", "fontSize": 10}, "top": 4},
+        "grid": {"top": 34, "bottom": 26, "left": 58, "right": 16},
+        "xAxis": {"type": "category", "data": traj["slots"], "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
         "yAxis": {"type": "value", "scale": True, "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-        "series": [
-            {"name": "実測終値", "type": "line", "data": series_actual, "lineStyle": {"color": "#f8fafc", "width": 2.5}, "showSymbol": False},
-            {"name": "強気軌道(85%)", "type": "line", "data": series_p90, "smooth": True, "lineStyle": {"color": "#10b981", "width": 1.8, "type": "dashed"}, "showSymbol": False},
-            {"name": "予測中央値(50%)", "type": "line", "data": series_p50, "smooth": True, "lineStyle": {"color": "#38bdf8", "width": 3.0}, "areaStyle": {"color": "rgba(56,189,248,0.12)"}, "showSymbol": True, "symbolSize": 5},
-            {"name": "弱気軌道(15%)", "type": "line", "data": series_p10, "smooth": True, "lineStyle": {"color": "#ef4444", "width": 1.8, "type": "dashed"}, "showSymbol": False},
-            {"name": "TP", "type": "line", "data": [round(tp_px, 2)] * len(all_x), "lineStyle": {"color": "rgba(16,185,129,0.5)", "type": "dotted", "width": 1.2}, "showSymbol": False},
-            {"name": "SL", "type": "line", "data": [round(sl_px, 2)] * len(all_x), "lineStyle": {"color": "rgba(239,68,68,0.5)", "type": "dotted", "width": 1.2}, "showSymbol": False}
-        ]
+        "series": series_list
     }
-    render_echarts(opt_fan, height=310)
+    render_echarts(opt_traj, height=320)
 
+    # ① 軌道修正の内訳（Factor Attribution）
+    f = traj["factors"]
+    st.markdown(f"""
+    <div class="dark-box">
+      <div style="font-size:11.5px;font-weight:800;color:#38bdf8;margin-bottom:6px;letter-spacing:0.5px;">FACTOR ATTRIBUTION // 軌道自動修正の内訳</div>
+      <div class="factor-row">
+        <span>主連動マクロ（{html.escape(f['mkt_label'])} {f['mkt_diff']:+.2f}% × β {f['mkt_beta']:+.2f}）</span>
+        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['macro_gap_pct']>=0 else '#ef4444'};">{f['macro_gap_pct']:+.2f}%</span>
+      </div>
+      <div class="factor-row">
+        <span>為替インパクト（ドル円 {f['fx_diff']:+.2f}% × β {f['fx_beta']:+.2f}）</span>
+        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['fx_gap_pct']>=0 else '#ef4444'};">{f['fx_gap_pct']:+.2f}%</span>
+      </div>
+      <div class="factor-row">
+        <span>最新ニュース修正（強気度 {news_res['pos_pct']}% / 衝撃係数 {f['news_shock']:+.2f}）</span>
+        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['news_gap_pct']>=0 else '#ef4444'};">{f['news_gap_pct']:+.2f}%</span>
+      </div>
+      <div class="factor-row">
+        <span>合成・明日寄付き予測（{fmt_currency(traj['est_open_px'], is_jp)}） → 大引け予測（{fmt_currency(traj['est_close_px'], is_jp)}）</span>
+        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if traj['est_close_chg']>=0 else '#ef4444'};">{traj['est_close_chg']:+.2f}%</span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ② 時間帯別・戦術タイムライン
+    open_stance = "ギャップアップ想定。初動の飛びつき買いを避け、押し目形成を待機。" if traj["est_open_gap_pct"] > 0.4 else ("ギャップダウン想定。下値支持の確認後に反発狙い。" if traj["est_open_gap_pct"] < -0.4 else "フラット寄付き想定。初動レンジのブレイク方向を確認。")
     st.markdown(f"""
     <div class="quant-box">
-      <b>🔮 モンテカルロ600回試行・リアルタイム予測サマリー（{html.escape(in_style)}基準）</b><br>
-      ・<b>明日の予測中央値:</b> <b>{fmt_currency(fcst['day1_p50'], is_jp)}</b>（現在値比 <b style="color:{'#6ee7b7' if fcst['day1_chg']>=0 else '#fca5a5'};">{fcst['day1_chg']:+.2f}%</b>）<br>
-      ・<b>5営業日以内の到達確率:</b> 利確目安({fmt_currency(tp_px, is_jp)}) <b style="color:#6ee7b7;">{fcst['hit_tp_prob']}%</b> ｜ 損切目安({fmt_currency(sl_px, is_jp)}) <b style="color:#fca5a5;">{fcst['hit_sl_prob']}%</b><br>
-      ・<b>適用アルゴリズム:</b> 主連動ドライバー <b>{html.escape(fcst['mkt_driver_lbl'])} (β={fcst['mkt_beta']})</b> ＋ ニュース衝撃({news_res['shock_score']:+.2f}) ＋ 想定日次ボラ <b>{fcst['eff_sigma_pct']}%</b>
+      <div style="font-size:11.5px;font-weight:800;color:#6ee7b7;margin-bottom:8px;letter-spacing:0.5px;">TACTICAL TIMELINE // 時間帯別・自動戦術マップ</div>
+      <div class="timeline-item"><b>{traj['slots'][0]}（寄付き初動）:</b> 想定始値 <b>{fmt_currency(traj['est_open_px'], is_jp)}</b>（{traj['est_open_gap_pct']:+.2f}%）。{open_stance}</div>
+      <div class="timeline-item" style="border-left-color:#f59e0b;"><b>{traj['dip_time']} 前後（押し目候補ゾーン）:</b> 過去5分足波形上、最も押しやすい時間帯（予測中央値 <b>{fmt_currency(traj['dip_px'], is_jp)}</b>）。反発確認のエントリー目安。</div>
+      <div class="timeline-item" style="border-left-color:#10b981;"><b>{traj['peak_time']} 前後（ピーク想定ゾーン）:</b> 1日の高値圏（予測中央値 <b>{fmt_currency(traj['peak_px'], is_jp)}</b>）。分割利確・トレール引き上げの目安。</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -719,7 +835,7 @@ with tab1:
 # TAB 2: マクロ感応度マトリクス ＆ 決算サプライズ履歴
 # -------------------------------------------------------------------------
 with tab2:
-    st.markdown("##### 🌐 マクロ感応度マトリクス（過去90営業日の相関・β）")
+    st.markdown("##### マクロ感応度マトリクス（過去90営業日の相関・β）")
     if macro_sens:
         opt_corr = {
             "backgroundColor": "#0b1120",
@@ -742,10 +858,8 @@ with tab2:
             for x in macro_sens
         ])
         st.markdown(f'<div class="dark-box"><table class="data-table"><thead><tr><th>マクロ指標</th><th>相関係数</th><th>感応度(β)</th><th>直近変動</th></tr></thead><tbody>{rows_m}</tbody></table></div>', unsafe_allow_html=True)
-    else:
-        st.info("マクロ指標データを取得できませんでした。")
 
-    st.markdown("##### 📅 決算サプライズ履歴（予想EPS vs 実績EPS）")
+    st.markdown("##### 決算サプライズ履歴（予想EPS vs 実績EPS）")
     eh = data["earnings_hist"]
     if eh:
         rows_e = ""
@@ -763,7 +877,7 @@ with tab2:
         st.caption("ℹ️ この銘柄のEPSサプライズ履歴はyfinanceから取得できませんでした。")
 
 # -------------------------------------------------------------------------
-# TAB 3: プロ仕様財務（EV/EBITDA・FCF・PEG）＆ 空売り・しこり玉レーダー
+# TAB 3: プロ仕様財務 ＆ 空売り・しこり玉レーダー
 # -------------------------------------------------------------------------
 with tab3:
     ev_ebitda = f"{info.get('enterpriseToEbitda'):.1f}倍" if info.get("enterpriseToEbitda") else "-"
@@ -783,13 +897,12 @@ with tab3:
     </div>
     """, unsafe_allow_html=True)
 
-    # しこり玉 & 空売り踏み上げアラート
     if info.get("shortPercentOfFloat") and info["shortPercentOfFloat"] >= 0.15:
-        st.markdown(f'<div class="warning-box"><b>🔥 ショートスクイーズ（空売り踏み上げ）警戒</b><br>浮動株に対する空売り比率が <b>{short_pct}</b>（カバー日数 {short_ratio}）と高水準です。好材料で急騰しやすい需給構造です。</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="warning-box"><b>ショートスクイーズ（空売り踏み上げ）警戒</b><br>浮動株に対する空売り比率が <b>{short_pct}</b>（カバー日数 {short_ratio}）と高水準です。</div>', unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="dark-box">
-      <b>🧱 価格帯別出来高（Volume Profile）しこり玉診断（過去1年）</b><br>
+      <b>価格帯別出来高（Volume Profile）しこり玉診断（過去1年）</b><br>
       ・<b>現在値より上の戻り売り（しこり玉）比率:</b> <b style="color:#c084fc;">{ovh_data['overhead_pct']}%</b><br>
       ・<b>1年最大出来高価格帯 (POC):</b> <b>{fmt_currency(ovh_data['poc_px'], is_jp)}</b>（{'現在値はPOCより上方＝下値支持' if curr_px >= ovh_data['poc_px'] else '現在値はPOCより下方＝上値抵抗'}）
     </div>
@@ -815,20 +928,20 @@ with tab3:
 
     opt_d = data["opt_data"]
     if opt_d:
-        st.markdown(f'<div class="quant-box"><b>📈 オプション市場（満期: {html.escape(opt_d["exp"])}）</b><br>PCR: <b>{opt_d["pcr"]}</b> ｜ Call IV: <b>{opt_d["call_iv"]}%</b> ｜ Put IV: <b>{opt_d["put_iv"]}%</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="quant-box"><b>オプション市場（満期: {html.escape(opt_d["exp"])}）</b><br>PCR: <b>{opt_d["pcr"]}</b> ｜ Call IV: <b>{opt_d["call_iv"]}%</b> ｜ Put IV: <b>{opt_d["put_iv"]}%</b></div>', unsafe_allow_html=True)
 
     if data["inst_holders"]:
         rows_h = "".join([f"<tr><td>{html.escape(x['holder'])}</td><td>{x['pct']:.2f}%</td><td>{x['shares']:,}</td></tr>" for x in data["inst_holders"]])
-        st.markdown(f'<div class="dark-box"><b>🏛️ 主要機関投資家トップ5</b><table class="data-table"><thead><tr><th>機関名</th><th>保有比率</th><th>株数</th></tr></thead><tbody>{rows_h}</tbody></table></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="dark-box"><b>主要機関投資家トップ5</b><table class="data-table"><thead><tr><th>機関名</th><th>保有比率</th><th>株数</th></tr></thead><tbody>{rows_h}</tbody></table></div>', unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
 # TAB 4: リスク監査・ニュース感情 ＆ 1分インベストメントメモ
 # -------------------------------------------------------------------------
 with tab4:
-    memo_key = f"memo_{fc}"
-    if st.button("🧠 機関投資家向け「1分インベストメントメモ」を生成", use_container_width=True, type="primary"):
-        with st.spinner("🧠 全データ（財務・マクロβ・ニュース・しこり玉）を統合してメモを作成中..."):
-            m_txt, m_src = generate_investment_memo(corp_name, fc, curr_px, is_jp, info, base_fcst, macro_sens, news_res, gov_risks, ovh_data)
+    memo_key = f"memo_v3_{fc}"
+    if st.button("機関投資家向け「1分インベストメントメモ」を生成", use_container_width=True, type="primary"):
+        with st.spinner("全データ（財務・マクロβ・1日軌道・ニュース）を統合してメモを作成中..."):
+            m_txt, m_src = generate_investment_memo(corp_name, fc, curr_px, is_jp, info, traj, macro_sens, news_res, gov_risks, ovh_data)
             st.session_state[memo_key] = (m_txt, m_src)
 
     if memo_key in st.session_state:
@@ -837,9 +950,9 @@ with tab4:
 
     if gov_risks:
         risk_html = "<br>".join([f"・{html.escape(x)}" for x in gov_risks])
-        st.markdown(f'<div class="warning-box"><b>🚨 ガバナンス・不祥事・訴訟関連ヒット ({len(gov_risks)}件)</b><br>{risk_html}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="warning-box"><b>ガバナンス・不祥事・訴訟関連ヒット ({len(gov_risks)}件)</b><br>{risk_html}</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div class="quant-box"><b>🟢 ガバナンス・不祥事監査: クリーン</b><br>直近ニュースにおいて不祥事・不正・訴訟などの特異リスクシグナルは検知されていません。</div>', unsafe_allow_html=True)
+        st.markdown('<div class="quant-box"><b>ガバナンス・不祥事監査: クリーン</b><br>直近ニュースにおいて不祥事・不正・訴訟などの特異リスクシグナルは検知されていません。</div>', unsafe_allow_html=True)
 
     pos_c, neu_c, neg_c = news_res["counts"]
     opt_sent = {
@@ -861,4 +974,4 @@ with tab4:
         for it in news_res["items"]:
             badge_c = "#10b981" if it["sent"] == "POS" else ("#ef4444" if it["sent"] == "NEG" else "#94a3b8")
             n_html += f'<div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.12);"><span style="color:{badge_c};font-weight:800;font-size:10.5px;">[{it["sent"]}]</span> <a href="{html.escape(it["link"])}" target="_blank" style="color:#e2e8f0;text-decoration:none;font-weight:600;">{html.escape(it["title"])}</a> <span style="color:#64748b;font-size:10.5px;">({html.escape(it["pub"])})</span></div>'
-        st.markdown(f'<div class="dark-box"><b>📰 最新ニュースヘッドライン ＆ 感情判定</b><br><br>{n_html}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="dark-box"><b>最新ニュースヘッドライン ＆ 感情判定</b><br><br>{n_html}</div>', unsafe_allow_html=True)
