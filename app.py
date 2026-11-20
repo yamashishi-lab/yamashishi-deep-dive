@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 LAB_APP_URL = "https://your-yamashishi-lab.streamlit.app/"
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE v6 [LIVE QUANTUM TERMINAL]",
+    page_title="YAMASHISHI DEEP DIVE v7 [LIVE QUANTUM TERMINAL]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -39,7 +39,6 @@ def inject_css():
         color: #e2e8f0;
         scroll-behavior: smooth;
     }
-    /* 更新時のブラックアウト・一瞬暗転を完全無効化 */
     [data-stale="true"] {
         opacity: 1 !important;
         transition: none !important;
@@ -80,8 +79,30 @@ def inject_css():
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 14px;
         padding: 12px 14px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+    .macro-strip {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        padding: 4px 0 6px 0;
+        margin-bottom: 6px;
+        scrollbar-width: none;
+    }
+    .macro-strip::-webkit-scrollbar { display: none; }
+    .macro-chip {
+        flex-shrink: 0;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10.5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
     .rank-card {
         background: linear-gradient(180deg, #0f172a 0%, #090d16 100%) !important;
@@ -167,7 +188,6 @@ def inject_css():
         transform: translateX(-50%);
         box-shadow: 0 0 8px rgba(56, 189, 248, 0.9);
     }
-    /* 左右2分割シナリオカード */
     .scenario-stack {
         display: flex;
         flex-direction: column;
@@ -210,6 +230,19 @@ def inject_css():
         overflow: hidden;
     }
     .sc-bar-fill { height: 100%; border-radius: 99px; }
+    .dow-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+        margin-top: 6px;
+    }
+    .dow-cell {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 7px;
+        padding: 6px 4px;
+        text-align: center;
+    }
     .dark-box {
         background: rgba(15, 23, 42, 0.88);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -272,7 +305,6 @@ def inject_css():
     .data-table td {
         padding: 6px 7px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); color: #e2e8f0;
     }
-    /* Manage appボタンとの重なりを回避するためbottom: 62pxに設定 */
     .floating-top-btn {
         position: fixed;
         bottom: 62px;
@@ -303,13 +335,18 @@ def fmt_currency(val, is_jp: bool) -> str:
         return "-"
     return f"{val:,.0f}円" if is_jp else f"${val:,.2f}"
 
+def fmt_shares_compact(n: int) -> str:
+    if not n or n <= 0: return "-"
+    if n >= 1e9: return f"{n/1e9:.2f}B株"
+    if n >= 1e6: return f"{n/1e6:.1f}M株"
+    if n >= 1e4: return f"{n/1e4:.1f}万株"
+    return f"{n:,}株"
+
 def get_gemini_api_key() -> str:
     k = os.environ.get("GEMINI_API_KEY", "")
     if not k:
-        try:
-            k = st.secrets.get("GEMINI_API_KEY", "")
-        except Exception:
-            k = ""
+        try: k = st.secrets.get("GEMINI_API_KEY", "")
+        except Exception: k = ""
     return str(k).strip()
 
 def render_echarts(option_dict: dict, height: int = 300):
@@ -387,12 +424,12 @@ def build_mini_sparkline_svg(prices: np.ndarray) -> str:
     return f'<svg width="92" height="26" viewBox="0 0 92 26" style="display:block;margin-left:auto;"><polyline fill="none" stroke="{col}" stroke-width="1.8" points="{" ".join(pts)}"/></svg>'
 
 # =========================================================================
-# 3. キャッシュ分離型データ取得 ＆ 日英グローバル高信頼フィルタ
+# 3. キャッシュ分離型データ取得 ＆ 日米大口株主・高信頼フィルタ
 # =========================================================================
 MACRO_TICKERS = {
-    "SOX": ("^SOX", "米SOX指数"), "SP500": ("^GSPC", "S&P500"),
+    "SOX": ("^SOX", "米SOX"), "SP500": ("^GSPC", "S&P500"),
     "N225": ("^N225", "日経平均"), "USDJPY": ("JPY=X", "ドル円"),
-    "US10Y": ("^TNX", "米10年債金利"), "OIL": ("CL=F", "WTI原油"), "VIX": ("^VIX", "VIX恐怖指数"),
+    "US10Y": ("^TNX", "米10年債"), "OIL": ("CL=F", "WTI原油"), "VIX": ("^VIX", "VIX"),
 }
 
 TIER1_SOURCES = ["REUTERS", "ロイター", "BLOOMBERG", "ブルームバーグ", "WSJ", "WALL STREET JOURNAL", "FINANCIAL TIMES", "NIKKEI", "日経", "日本経済新聞", "KABUTAN", "株探", "PR TIMES", "CNBC", "SEC"]
@@ -419,6 +456,33 @@ def load_macro_data() -> dict:
     except Exception:
         pass
     return out
+
+@st.cache_data(ttl=3600)
+def fetch_jp_kabutan_holders(code4: str) -> list:
+    """東証銘柄の大株主Top10を株探から安全に抽出"""
+    holders = []
+    try:
+        url = f"https://kabutan.jp/stock/holder?code={urllib.parse.quote(code4)}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=4.0, context=ssl.create_default_context()) as r:
+            page = r.read().decode("utf-8", errors="ignore")
+        rows = re.findall(r"<tr[^>]*>(.*?)</tr>", page, re.DOTALL)
+        for tr in rows:
+            tds = [re.sub(r"<[^>]+>", "", td).strip() for td in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.DOTALL)]
+            if len(tds) >= 3:
+                m_pct = re.search(r"([0-9]+\.[0-9]+)", tds[1].replace("%", ""))
+                m_sh = re.search(r"([0-9,]+)", tds[2])
+                nm = html.unescape(tds[0]).strip()
+                if m_pct and nm and not any(x in nm for x in ["株主名", "合計", "順位"]):
+                    pct_v = float(m_pct.group(1))
+                    sh_v = int(m_sh.group(1).replace(",", "")) * 1000 if m_sh else 0  # 株探は千株単位が多い
+                    if 0.1 <= pct_v <= 99.0:
+                        holders.append({"holder": nm, "pct": pct_v, "shares": sh_v})
+            if len(holders) >= 10:
+                break
+    except Exception:
+        pass
+    return holders
 
 @st.cache_data(ttl=60)
 def load_stock_core(code: str) -> dict:
@@ -462,7 +526,7 @@ def load_stock_core(code: str) -> dict:
     try:
         ih = tkr.institutional_holders
         if ih is not None and not ih.empty:
-            for _, row in ih.head(5).iterrows():
+            for _, row in ih.head(10).iterrows():
                 inst_holders.append({
                     "holder": str(row.get("Holder", "-")),
                     "pct": float(row.get("pctHeld", 0.0)) * 100.0 if pd.notna(row.get("pctHeld")) else 0.0,
@@ -470,6 +534,10 @@ def load_stock_core(code: str) -> dict:
                 })
     except Exception:
         pass
+
+    # 東証銘柄でyfinanceから取れなかった場合は株探から自動補完
+    if not inst_holders and code.endswith(".T"):
+        inst_holders = fetch_jp_kabutan_holders(code.replace(".T", ""))
 
     return {
         "df_1d": df_1d, "df_5m": df_5m, "info": info,
@@ -487,15 +555,13 @@ def _fetch_rss_raw(url: str, lang_tag: str) -> list:
                 link = (it.findtext("link") or "").strip()
                 src = (it.findtext("source") or "").strip()
                 pub = (it.findtext("pubDate") or "").strip()[:16]
-                if t:
-                    out.append({"title": t, "link": link, "source": src, "pub": pub, "lang": lang_tag})
+                if t: out.append({"title": t, "link": link, "source": src, "pub": pub, "lang": lang_tag})
     except Exception:
         pass
     return out
 
 @st.cache_data(ttl=120)
 def fetch_global_trusted_intelligence(corp_name: str, short_code: str) -> dict:
-    """日英マルチソース並列収集 ＋ 3段階トラスト・フィルタ ＋ クロス検証"""
     q_jp = f"{corp_name} OR {short_code} 株価"
     q_en = f"{short_code} OR \"{corp_name.split(' ')[0]}\" stock (Reuters OR Bloomberg OR CNBC OR WSJ)"
     url_jp = f"https://news.google.com/rss/search?q={urllib.parse.quote(q_jp)}&hl=ja&gl=JP&ceid=JP:ja"
@@ -505,71 +571,52 @@ def fetch_global_trusted_intelligence(corp_name: str, short_code: str) -> dict:
     with ThreadPoolExecutor(max_workers=2) as ex:
         f1 = ex.submit(_fetch_rss_raw, url_jp, "JP")
         f2 = ex.submit(_fetch_rss_raw, url_en, "EN")
-        raw_items.extend(f1.result())
-        raw_items.extend(f2.result())
+        raw_items.extend(f1.result()); raw_items.extend(f2.result())
 
     pos_w = ["上昇", "急騰", "最高益", "上方修正", "増配", "自社株買い", "好調", "提携", "買い", "黒字", "成長", "SURGE", "BEAT", "UPGRADE", "RECORD", "BUY", "GROWTH", "RALLY"]
     neg_w = ["下落", "急落", "下方修正", "赤字", "減益", "不祥事", "訴訟", "不正", "辞任", "懸念", "売り", "リスク", "DROP", "FALL", "MISS", "DOWNGRADE", "LAWSUIT", "PROBE", "CUT", "SLUMP"]
 
-    filtered = []
-    seen_t = set()
+    filtered, seen_t = [], set()
     for it in raw_items:
         src_up = (it["source"] + " " + it["title"]).upper()
-        if any(ns.upper() in src_up for ns in NOISE_SOURCES):
-            continue
+        if any(ns.upper() in src_up for ns in NOISE_SOURCES): continue
         norm_k = re.sub(r"\W+", "", it["title"].lower())[:24]
-        if norm_k in seen_t:
-            continue
+        if norm_k in seen_t: continue
         seen_t.add(norm_k)
 
-        if any(t1 in src_up for t1 in TIER1_SOURCES):
-            trust, w_trust = "S", 2.0
-        elif any(t2 in src_up for t2 in TIER2_SOURCES):
-            trust, w_trust = "A", 1.3
-        else:
-            trust, w_trust = "B", 0.7
+        if any(t1 in src_up for t1 in TIER1_SOURCES): trust, w_trust = "S", 2.0
+        elif any(t2 in src_up for t2 in TIER2_SOURCES): trust, w_trust = "A", 1.3
+        else: trust, w_trust = "B", 0.7
 
         t_up = it["title"].upper()
         p_hit = sum(1 for w in pos_w if w in t_up)
         n_hit = sum(1 for w in neg_w if w in t_up)
         sent = "POS" if p_hit > n_hit else ("NEG" if n_hit > p_hit else "NEU")
-
         filtered.append({**it, "trust": trust, "w_trust": w_trust, "sent": sent})
 
-    # 信頼度S・Aを優先ソート
-    tier_ord = {"S": 0, "A": 1, "B": 2}
-    filtered.sort(key=lambda x: (tier_ord[x["trust"]], 0 if x["lang"] == "EN" else 1))
-
-    # 加重センチメント算出（信頼度Sの記事ほどメーターと予測軌道に強く効く）
+    filtered.sort(key=lambda x: ({"S": 0, "A": 1, "B": 2}[x["trust"]], 0 if x["lang"] == "EN" else 1))
     w_pos = sum(x["w_trust"] for x in filtered if x["sent"] == "POS")
     w_neg = sum(x["w_trust"] for x in filtered if x["sent"] == "NEG")
     w_tot = max(sum(x["w_trust"] for x in filtered), 1.0)
-    shock_score = round(float(np.clip((w_pos - w_neg) / w_tot, -1.0, 1.0)), 2)
-    pos_pct = round(w_pos / w_tot * 100)
-    tier1_cnt = sum(1 for x in filtered if x["trust"] == "S")
-
     return {
-        "items": filtered[:10], "pos_pct": pos_pct, "shock_score": shock_score,
-        "tier1_cnt": tier1_cnt, "total_cnt": len(filtered)
+        "items": filtered[:10], "pos_pct": round(w_pos / w_tot * 100),
+        "shock_score": round(float(np.clip((w_pos - w_neg) / w_tot, -1.0, 1.0)), 2),
+        "tier1_cnt": sum(1 for x in filtered if x["trust"] == "S"), "total_cnt": len(filtered)
     }
 
 @st.cache_data(ttl=180)
 def fetch_governance_and_whale_scans(company_name: str, short_code: str) -> tuple:
-    """ガバナンス監査 ＋ 大量保有報告書(5%ルール)・機関空売り動向スキャンを並列実行"""
     q_gov = f"{company_name} (不祥事 OR 不正 OR 訴訟 OR 行政処分 OR 辞任 OR リコール)"
     q_whale = f"({company_name} OR {short_code}) (大量保有 OR 変更報告書 OR 機関投資家 OR 空売り残高 OR 5%ルール)"
     u_gov = f"https://news.google.com/rss/search?q={urllib.parse.quote(q_gov)}&hl=ja&gl=JP&ceid=JP:ja"
     u_whale = f"https://news.google.com/rss/search?q={urllib.parse.quote(q_whale)}&hl=ja&gl=JP&ceid=JP:ja"
-
     with ThreadPoolExecutor(max_workers=2) as ex:
         fg = ex.submit(_fetch_rss_raw, u_gov, "JP")
         fw = ex.submit(_fetch_rss_raw, u_whale, "JP")
-        gov_list = [f"{x['title']} ({x['pub']})" for x in fg.result()[:5]]
-        whale_list = fw.result()[:5]
-    return gov_list, whale_list
+        return [f"{x['title']} ({x['pub']})" for x in fg.result()[:5]], fw.result()[:5]
 
 # =========================================================================
-# 4. アルゴリズムエンジン（指数減衰ウェイト5分足軌道・AIメモ自動キャッシュ）
+# 4. アルゴリズムエンジン（5分足軌道・曜日別アノマリー・AIメモ自動キャッシュ）
 # =========================================================================
 def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
     s_ret = stock_close.pct_change().dropna().tail(90)
@@ -584,6 +631,24 @@ def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
             results.append({"key": k, "label": m["label"], "corr": round(0.0 if np.isnan(corr) else corr, 2), "beta": round(0.0 if np.isnan(beta) else beta, 2), "latest_diff": m["diff_pct"]})
     results.sort(key=lambda x: abs(x["corr"]), reverse=True)
     return results
+
+def compute_day_of_week_edge(df_1d: pd.DataFrame) -> tuple:
+    """過去1年の日足から月〜金の勝率・平均騰落率を算出"""
+    rets = df_1d["Close"].pct_change().dropna() * 100.0
+    dow_names = ["月", "火", "水", "木", "金"]
+    stats = []
+    for d in range(5):
+        sub = rets[rets.index.dayofweek == d]
+        if len(sub) >= 3:
+            wr = round(float((sub > 0).mean() * 100.0), 0)
+            avg = round(float(sub.mean()), 2)
+        else:
+            wr, avg = 50.0, 0.0
+        stats.append({"dow": d, "label": dow_names[d], "wr": int(wr), "avg": avg})
+    # 翌営業日の曜日（金土日→月、それ以外→翌日）
+    wd = datetime.datetime.now().weekday()
+    next_wd = 0 if wd >= 4 else wd + 1
+    return stats, next_wd
 
 def build_5m_realtime_trajectory(
     curr_px: float, df_5m: pd.DataFrame, macro_sens: list, macro_data: dict, news_res: dict, is_jp: bool
@@ -762,9 +827,9 @@ def generate_auto_investment_memo(
 h_col1, h_col2 = st.columns([3.1, 1.3])
 with h_col1:
     st.markdown(
-        '<div class="glass-header" style="margin-bottom:6px;">'
-        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v6</div>'
-        '<div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">フル幅5分足確率コーン × 日英高信頼フィルタ × 無暗転ライブ同期</div>'
+        '<div class="glass-header">'
+        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v7</div>'
+        '<div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">フル幅5分足確率コーン × 大口Top10ランキング × 曜日エッジ</div>'
         '</div>',
         unsafe_allow_html=True
     )
@@ -793,9 +858,18 @@ is_jp = fc.endswith(".T")
 def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
     render_live_clock_bar(sync_interval=60)
 
-    # spinnerを外すことで更新時の暗転・カクつきを完全防止
     data = load_stock_core(fc_code)
     macro_data = load_macro_data()
+
+    # グローバル市場ライブ・ティッカーバー
+    if macro_data:
+        chips = ""
+        for k in ["SOX", "SP500", "N225", "USDJPY", "US10Y", "OIL", "VIX"]:
+            if k in macro_data:
+                m = macro_data[k]
+                c_col = "#10b981" if m["diff_pct"] >= 0 else "#ef4444"
+                chips += f'<div class="macro-chip"><span style="color:#94a3b8;">{m["label"]}</span><span style="color:{c_col};font-weight:700;">{m["diff_pct"]:+.2f}%</span></div>'
+        st.markdown(f'<div class="macro-strip">{chips}</div>', unsafe_allow_html=True)
 
     df_1d, df_5m, info = data["df_1d"], data["df_5m"], data["info"]
     if df_1d is None or df_1d.empty:
@@ -812,6 +886,7 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
     chg_col = "#10b981" if chg_pct >= 0 else "#ef4444"
 
     macro_sens = compute_macro_sensitivity(df_1d["Close"], macro_data)
+    dow_stats, next_wd = compute_day_of_week_edge(df_1d)
     news_res = fetch_global_trusted_intelligence(corp_name, short_code)
     gov_risks, whale_news = fetch_governance_and_whale_scans(corp_name, short_code)
     vp = compute_volume_profile_detail(df_1d, curr_px, is_jp_flag)
@@ -873,13 +948,13 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
 
     tab1, tab2, tab3, tab4 = st.tabs([
         "翌営業日 1日軌道",
-        "マクロβ・決算",
+        "マクロβ・曜日",
         "財務・大口株主",
         "リスク・AIメモ"
     ])
 
     # ---------------------------------------------------------------------
-    # TAB 1: フル幅5分刻み軌道 ＋ 左右2分割シナリオカード
+    # TAB 1: フル幅5分刻み軌道 ＋ 2分割シナリオカード ＋ 内訳
     # ---------------------------------------------------------------------
     with tab1:
         st.markdown(
@@ -922,7 +997,6 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
             series_list.append({"name": "当日実測", "type": "line", "yAxisIndex": 0, "data": traj["actual"], "lineStyle": {"color": "#ffffff", "width": 2.5}, "showSymbol": False})
             legend_names.insert(0, "当日実測")
 
-        # boundaryGap: False + 非表示Y軸の領域ゼロ化で右側余白を完全解消
         opt_traj = {
             "backgroundColor": "#0b1120",
             "tooltip": {"trigger": "axis"},
@@ -937,7 +1011,6 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
         }
         render_echarts(opt_traj, height=315)
 
-        # 左右2分割 ＋ 確率ゲージバー付きシナリオカード
         bull_pct = (traj["bull_target"] - curr_px) / max(curr_px, 1e-4) * 100.0
         bear_pct = (traj["bear_target"] - curr_px) / max(curr_px, 1e-4) * 100.0
         st.markdown(f"""
@@ -960,7 +1033,7 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
             <div class="sc-top">
               <div class="sc-left">
                 <div style="font-weight:800;color:#7dd3fc;font-size:12.5px;">標準レンジシナリオ（確率 55%）</div>
-                <div style="font-size:11px;color:#cbd5e1;margin-top:2px;">押し目候補: <b>{traj['dip_time']}</b> ({fmt_currency(traj['dip_px'], is_jp_flag)}) → 高値 <b>{traj['peak_time']}</b></div>
+                <div style="font-size:11px;color:#cbd5e1;margin-top:2px;">押し目: <b>{traj['dip_time']}</b> ({fmt_currency(traj['dip_px'], is_jp_flag)}) → 高値 <b>{traj['peak_time']}</b></div>
               </div>
               <div class="sc-right">
                 <div class="sc-price" style="color:#7dd3fc;">{fmt_currency(traj['est_close_px'], is_jp_flag)}</div>
@@ -998,9 +1071,25 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
         """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------------------
-    # TAB 2: マクロβ感応度 ＆ EPS比較バーチャート
+    # TAB 2: 曜日別アノマリー ＋ マクロβ感応度 ＋ EPS比較
     # ---------------------------------------------------------------------
     with tab2:
+        # 曜日別アノマリー・ヒートマップ
+        dow_cells = ""
+        for d in dow_stats:
+            is_next = (d["dow"] == next_wd)
+            bd = "border:1.5px solid #fde047;background:rgba(250,204,21,0.12);" if is_next else ""
+            c_col = "#10b981" if d["avg"] >= 0 else "#ef4444"
+            tag = "★翌" if is_next else ""
+            dow_cells += (
+                f'<div class="dow-cell" style="{bd}">'
+                f'<div style="font-size:10px;color:{"#fde047" if is_next else "#94a3b8"};font-weight:800;">{d["label"]}曜 {tag}</div>'
+                f'<div style="font-family:JetBrains Mono,monospace;font-size:12.5px;font-weight:800;color:{c_col};margin-top:2px;">{d["avg"]:+.2f}%</div>'
+                f'<div style="font-size:9.5px;color:#cbd5e1;">勝率 {d["wr"]}%</div>'
+                f'</div>'
+            )
+        st.markdown(f'<div class="dark-box"><b>DAY-OF-WEEK EDGE // 曜日別アノマリー（過去1年実測）</b><div class="dow-grid">{dow_cells}</div></div>', unsafe_allow_html=True)
+
         st.markdown("##### マクロ感応度マトリクス（過去90営業日の相関・β）")
         if macro_sens:
             opt_corr = {
@@ -1011,10 +1100,7 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
                 "yAxis": {"type": "category", "data": [x["label"] for x in macro_sens][::-1], "axisLabel": {"color": "#e2e8f0", "fontSize": 10.5}},
                 "series": [{"type": "bar", "data": [{"value": x["corr"], "itemStyle": {"color": "#10b981" if x["corr"] >= 0 else "#ef4444"}} for x in macro_sens[::-1]]}]
             }
-            render_echarts(opt_corr, height=220)
-
-            rows_m = "".join([f"<tr><td><b>{html.escape(x['label'])}</b></td><td style='color:{'#10b981' if x['corr']>=0 else '#ef4444'};font-weight:700;'>{x['corr']:+.2f}</td><td>{x['beta']:+.2f}</td><td style='color:{'#10b981' if x['latest_diff']>=0 else '#ef4444'};'>{x['latest_diff']:+.2f}%</td></tr>" for x in macro_sens])
-            st.markdown(f'<div class="dark-box"><div class="table-wrap"><table class="data-table"><thead><tr><th>マクロ指標</th><th>相関係数</th><th>感応度(β)</th><th>直近変動</th></tr></thead><tbody>{rows_m}</tbody></table></div></div>', unsafe_allow_html=True)
+            render_echarts(opt_corr, height=215)
 
         st.markdown("##### 決算サプライズ（予想EPS vs 実績EPS）")
         eh = [e for e in data["earnings_hist"] if e["est"] is not None or e["rep"] is not None]
@@ -1032,27 +1118,47 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
                     {"name": "実績EPS", "type": "bar", "data": [{"value": e["rep"], "itemStyle": {"color": "#10b981" if (e["surp"] or 0) >= 0 else "#ef4444"}} for e in eh_rev]}
                 ]
             }
-            render_echarts(opt_eps, height=210)
+            render_echarts(opt_eps, height=205)
         else:
             st.caption("ℹ️ この銘柄のEPSサプライズ履歴はyfinanceから取得できませんでした。")
 
     # ---------------------------------------------------------------------
-    # TAB 3: 5軸レーダー ＋ 機関投資家・大量保有スキャン ＋ 仮想板Volume Profile
+    # TAB 3: 大口株主 Top 10 ランキンググラフ ＋ 5軸レーダー ＋ 仮想板
     # ---------------------------------------------------------------------
     with tab3:
-        scores_5 = compute_5axis_scores(info, vp["overhead_pct"], len(gov_risks))
-        opt_radar = {
-            "backgroundColor": "#0b1120",
-            "radar": {
-                "radius": "62%",
-                "indicator": [{"name": "割安性", "max": 100}, {"name": "成長性", "max": 100}, {"name": "収益性", "max": 100}, {"name": "需給軽さ", "max": 100}, {"name": "安全性", "max": 100}],
-                "axisName": {"color": "#cbd5e1", "fontSize": 10.5}
-            },
-            "series": [{"type": "radar", "data": [{"value": scores_5, "name": "総合体力", "itemStyle": {"color": "#38bdf8"}, "areaStyle": {"color": "rgba(56,189,248,0.28)"}}]}]
-        }
-        render_echarts(opt_radar, height=220)
+        st.markdown("##### 大口投資家・大株主 Top 10 ランキング（比率% ＆ 保有株数）")
+        inst_h = data["inst_holders"]
+        if inst_h:
+            top_h = sorted(inst_h, key=lambda x: x["pct"], reverse=True)[:10]
+            rev_h = top_h[::-1]
+            rank_cols = ["#f59e0b", "#38bdf8", "#10b981"]
+            bar_data = []
+            for i, x in enumerate(rev_h):
+                r_idx = len(rev_h) - 1 - i
+                col = rank_cols[r_idx] if r_idx < 3 else "#6366f1"
+                sh_lbl = fmt_shares_compact(x["shares"])
+                lbl_txt = f"{x['pct']:.1f}% ({sh_lbl})" if sh_lbl != "-" else f"{x['pct']:.1f}%"
+                bar_data.append({
+                    "value": round(x["pct"], 2),
+                    "itemStyle": {"color": col, "borderRadius": [0, 4, 4, 0]},
+                    "label": {"show": True, "position": "right", "color": "#e2e8f0", "fontSize": 9.5, "formatter": lbl_txt}
+                })
 
-        st.markdown("##### 機関投資家・大口株主 保有構成 ＆ 大量保有スキャン")
+            opt_rank = {
+                "backgroundColor": "#0b1120",
+                "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+                "grid": {"top": 10, "bottom": 18, "left": 4, "right": 96, "containLabel": True},
+                "xAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9, "formatter": "{value}%"}},
+                "yAxis": {"type": "category", "data": [f"#{len(rev_h)-i} {x['holder'][:14]}" for i, x in enumerate(rev_h)], "axisLabel": {"color": "#f8fafc", "fontSize": 9.5}},
+                "series": [{"name": "保有比率", "type": "bar", "data": bar_data, "barMaxWidth": 15}]
+            }
+            render_echarts(opt_rank, height=max(210, len(rev_h) * 28))
+
+            rows_h = "".join([f"<tr><td>#{idx}</td><td>{html.escape(x['holder'])}</td><td><b>{x['pct']:.2f}%</b></td><td style='font-family:monospace;'>{x['shares']:,}</td></tr>" for idx, x in enumerate(top_h, 1)])
+            st.markdown(f'<div class="dark-box"><div class="table-wrap"><table class="data-table"><thead><tr><th>順位</th><th>大口株主</th><th>比率</th><th>保有株数</th></tr></thead><tbody>{rows_h}</tbody></table></div></div>', unsafe_allow_html=True)
+        elif is_jp_flag:
+            st.link_button(f"🏛️ 株探で {short_code} の大株主一覧を見る", f"https://kabutan.jp/stock/holder?code={short_code}", use_container_width=True)
+
         hb = data["holder_breakdown"]
         if hb:
             opt_donut = {
@@ -1069,38 +1175,23 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
                     ]
                 }]
             }
-            render_echarts(opt_donut, height=205)
+            render_echarts(opt_donut, height=195)
 
-        inst_h = data["inst_holders"]
-        if inst_h:
-            opt_ih = {
-                "backgroundColor": "#0b1120",
-                "tooltip": {"trigger": "axis"},
-                "grid": {"top": 10, "bottom": 20, "left": 6, "right": 14, "containLabel": True},
-                "xAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5, "formatter": "{value}%"}},
-                "yAxis": {"type": "category", "data": [x["holder"][:18] for x in inst_h][::-1], "axisLabel": {"color": "#e2e8f0", "fontSize": 9.5}},
-                "series": [{"name": "保有比率", "type": "bar", "data": [round(x["pct"], 2) for x in inst_h][::-1], "itemStyle": {"color": "#10b981"}}]
-            }
-            render_echarts(opt_ih, height=190)
-
-            rows_h = "".join([f"<tr><td>{html.escape(x['holder'])}</td><td><b>{x['pct']:.2f}%</b></td><td style='font-family:monospace;'>{x['shares']:,}</td></tr>" for x in inst_h])
-            st.markdown(f'<div class="dark-box"><div class="table-wrap"><table class="data-table"><thead><tr><th>大口機関投資家</th><th>保有比率</th><th>保有株数</th></tr></thead><tbody>{rows_h}</tbody></table></div></div>', unsafe_allow_html=True)
-        elif is_jp_flag:
-            st.link_button(f"🏛️ 株探で {short_code} の大株主一覧を見る", f"https://kabutan.jp/stock/holder?code={short_code}", use_container_width=True)
-
-        # 大量保有報告書(5%ルール)・機関空売り動向スキャン
         if whale_news:
             w_html = "".join([f'<div style="margin-bottom:6px;"><a href="{html.escape(x["link"])}" target="_blank" style="color:#7dd3fc;text-decoration:none;font-weight:600;">・{html.escape(x["title"])}</a> <span style="color:#64748b;font-size:10px;">({html.escape(x["pub"])})</span></div>' for x in whale_news])
             st.markdown(f'<div class="dark-box"><b>WHALE TRACKER // 大量保有(5%ルール)・機関空売り最新動向</b><br><br>{w_html}</div>', unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div class="dark-box">
-          <b>VIRTUAL ORDERBOOK // 仮想板・抵抗＆支持マップ（1年実測）</b><br>
-          ・<span style="color:#fca5a5;">大口売り壁（抵抗帯）:</span> <b>{fmt_currency(vp['res_px'], is_jp_flag)}</b><br>
-          ・<span style="color:#38bdf8;">最大出来高帯 (POC):</span> <b>{fmt_currency(vp['poc_px'], is_jp_flag)}</b><br>
-          ・<span style="color:#6ee7b7;">大口買い支え（支持帯）:</span> <b>{fmt_currency(vp['sup_px'], is_jp_flag)}</b>
-        </div>
-        """, unsafe_allow_html=True)
+        scores_5 = compute_5axis_scores(info, vp["overhead_pct"], len(gov_risks))
+        opt_radar = {
+            "backgroundColor": "#0b1120",
+            "radar": {
+                "radius": "62%",
+                "indicator": [{"name": "割安性", "max": 100}, {"name": "成長性", "max": 100}, {"name": "収益性", "max": 100}, {"name": "需給軽さ", "max": 100}, {"name": "安全性", "max": 100}],
+                "axisName": {"color": "#cbd5e1", "fontSize": 10.5}
+            },
+            "series": [{"type": "radar", "data": [{"value": scores_5, "name": "総合体力", "itemStyle": {"color": "#38bdf8"}, "areaStyle": {"color": "rgba(56,189,248,0.28)"}}]}]
+        }
+        render_echarts(opt_radar, height=215)
 
         if vp["labels"]:
             opt_vp = {
@@ -1111,7 +1202,7 @@ def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
                 "yAxis": {"type": "category", "data": vp["labels"], "axisLabel": {"color": "#cbd5e1", "fontSize": 9.5}},
                 "series": [{"name": "出来高(M)", "type": "bar", "data": vp["vols"], "itemStyle": {"color": "#a855f7"}}]
             }
-            render_echarts(opt_vp, height=235)
+            render_echarts(opt_vp, height=230)
 
     # ---------------------------------------------------------------------
     # TAB 4: CNN風リアル計器メーター ＋ 自動AIメモ ＋ 日英高信頼フィード
