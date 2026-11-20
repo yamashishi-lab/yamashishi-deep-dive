@@ -19,23 +19,24 @@ import xml.etree.ElementTree as ET
 LAB_APP_URL = "https://your-yamashishi-lab.streamlit.app/"
 
 st.set_page_config(
-    page_title="YAMASHISHI DEEP DIVE v3 [QUANTUM TERMINAL]",
+    page_title="YAMASHISHI DEEP DIVE v4 [LIVE QUANTUM TERMINAL]",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
 # =========================================================================
-# 1. スタイリング（YAMASHISHI LAB 統一ダーク・クオンツUI）
+# 1. スタイリング（スマホ完全最適化 ＋ LAB統一ダークUI ＋ ↑TOPボタン）
 # =========================================================================
 def inject_css():
     css = """
     @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap');
     html, body, [class*="css"] {
         font-family: 'Plus Jakarta Sans', sans-serif;
-        font-size: 14px;
+        font-size: 13.5px;
         background-color: #050811;
         color: #e2e8f0;
+        scroll-behavior: smooth;
     }
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #050811 !important;
@@ -59,9 +60,9 @@ def inject_css():
     }
     .brand-luxury {
         font-family: 'Cinzel', serif !important;
-        font-size: clamp(17px, 4.5vw, 24px) !important;
+        font-size: clamp(16px, 4.6vw, 23px) !important;
         font-weight: 800 !important;
-        letter-spacing: clamp(1px, 0.4vw, 2.5px) !important;
+        letter-spacing: clamp(0.8px, 0.4vw, 2.2px) !important;
         background: linear-gradient(90deg, #f8fafc 0%, #38bdf8 50%, #a855f7 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -72,17 +73,16 @@ def inject_css():
                     linear-gradient(145deg, #0f172a 0%, #070b14 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 14px;
-        padding: 14px 16px;
-        margin-bottom: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
     }
     .rank-card {
         background: linear-gradient(180deg, #0f172a 0%, #090d16 100%) !important;
         color: #f8fafc !important;
         border-radius: 14px;
-        padding: 14px 16px;
-        margin-bottom: 14px;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+        padding: 14px;
+        margin-bottom: 12px;
         border: 1px solid rgba(148, 163, 184, 0.22);
         border-left: 5px solid #38bdf8;
     }
@@ -90,10 +90,10 @@ def inject_css():
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        margin-bottom: 8px;
-        background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.4) 100%);
+        gap: 6px;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        background: linear-gradient(90deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.45) 100%);
         border-left: 3px solid #38bdf8;
         border-bottom: 1px solid rgba(56, 189, 248, 0.2);
         border-radius: 4px;
@@ -101,68 +101,39 @@ def inject_css():
     }
     .trajectory-title {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
+        font-size: clamp(10.5px, 3vw, 12px);
         font-weight: 700;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.4px;
         color: #f8fafc;
-        white-space: nowrap;
+        white-space: normal;
+        word-break: break-word;
     }
-    .trajectory-title span {
-        color: #38bdf8;
-        font-weight: 500;
-    }
-    .live-pill {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 10px;
-        font-weight: 700;
-        color: #6ee7b7;
-        background: rgba(16, 185, 129, 0.12);
-        border: 1px solid rgba(16, 185, 129, 0.4);
-        padding: 2px 8px;
-        border-radius: 99px;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .live-dot {
-        width: 6px;
-        height: 6px;
-        background: #10b981;
-        border-radius: 50%;
-        display: inline-block;
-        animation: pulse-green 1.8s infinite;
-    }
-    @keyframes pulse-green {
-        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8); }
-        70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-    }
+    .trajectory-title span { color: #38bdf8; font-weight: 500; }
     .winrate-bar {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 6px;
         background: rgba(15, 23, 42, 0.85);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 8px;
-        padding: 8px;
+        padding: 8px 6px;
         margin-top: 8px;
         text-align: center;
     }
+    @media (max-width: 640px) {
+        .winrate-bar { grid-template-columns: repeat(2, 1fr); }
+    }
     .metric-val {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 14px;
+        font-size: 13.5px;
         font-weight: 800;
         color: #38bdf8;
         margin-top: 2px;
     }
-    .metric-lbl {
-        font-size: 10px;
-        color: #94a3b8;
-        font-weight: 600;
-    }
+    .metric-lbl { font-size: 10px; color: #94a3b8; font-weight: 600; }
     .pill-badge {
-        font-size: 10.5px;
-        padding: 2px 7px;
+        font-size: 10px;
+        padding: 2px 6px;
         border-radius: 4px;
         border: 1px solid rgba(56, 189, 248, 0.4);
         background: rgba(56, 189, 248, 0.14);
@@ -171,13 +142,49 @@ def inject_css():
         display: inline-block;
         margin-right: 4px;
     }
+    .range-track {
+        width: 100%;
+        height: 6px;
+        background: rgba(148, 163, 184, 0.2);
+        border-radius: 99px;
+        position: relative;
+        margin: 6px 0 3px 0;
+    }
+    .range-dot {
+        width: 11px;
+        height: 11px;
+        background: #38bdf8;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        position: absolute;
+        top: -2.5px;
+        transform: translateX(-50%);
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.9);
+    }
+    .scenario-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+    @media (max-width: 640px) {
+        .scenario-grid { grid-template-columns: 1fr; }
+    }
+    .scenario-card {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 8px;
+        padding: 9px 10px;
+        font-size: 11.5px;
+        line-height: 1.5;
+    }
     .dark-box {
         background: rgba(15, 23, 42, 0.88);
         border: 1px solid rgba(148, 163, 184, 0.18);
-        padding: 12px 14px;
+        padding: 12px;
         border-radius: 10px;
         margin-bottom: 10px;
-        font-size: 12.5px;
+        font-size: 12px;
         line-height: 1.65;
         color: #cbd5e1;
     }
@@ -185,10 +192,10 @@ def inject_css():
         background: rgba(239, 68, 68, 0.10);
         border: 1px solid rgba(239, 68, 68, 0.35);
         border-left: 4px solid #ef4444;
-        padding: 12px 14px;
+        padding: 12px;
         border-radius: 10px;
         margin-bottom: 10px;
-        font-size: 12.5px;
+        font-size: 12px;
         line-height: 1.65;
         color: #fecaca;
     }
@@ -196,10 +203,10 @@ def inject_css():
         background: rgba(16, 185, 129, 0.10);
         border: 1px solid rgba(16, 185, 129, 0.35);
         border-left: 4px solid #10b981;
-        padding: 12px 14px;
+        padding: 12px;
         border-radius: 10px;
         margin-bottom: 10px;
-        font-size: 12.5px;
+        font-size: 12px;
         line-height: 1.65;
         color: #d1fae5;
     }
@@ -207,58 +214,63 @@ def inject_css():
         background: linear-gradient(180deg, #0b192c 0%, #090d16 100%);
         border: 1px solid rgba(168, 85, 247, 0.45);
         border-left: 4px solid #a855f7;
-        padding: 14px 16px;
+        padding: 12px 14px;
         border-radius: 10px;
-        margin-bottom: 12px;
-        font-size: 12.5px;
-        line-height: 1.75;
+        margin-bottom: 10px;
+        font-size: 12px;
+        line-height: 1.7;
         color: #f1f5f9;
     }
     .factor-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 8px;
         padding: 5px 0;
         border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-        font-size: 12px;
+        font-size: 11.5px;
     }
-    .factor-row:last-child {
-        border-bottom: none;
-        padding-top: 7px;
-        font-weight: 800;
-    }
+    .factor-row:last-child { border-bottom: none; padding-top: 7px; font-weight: 800; }
     .timeline-item {
         border-left: 2px solid #38bdf8;
-        padding-left: 10px;
-        margin-bottom: 8px;
-        font-size: 12px;
-        line-height: 1.55;
-    }
-    .data-table {
-        width: 100%;
-        border-collapse: collapse;
+        padding-left: 9px;
+        margin-bottom: 7px;
         font-size: 11.5px;
-        margin-top: 6px;
+        line-height: 1.5;
     }
+    .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; min-width: 310px; }
     .data-table th {
-        background: #1e293b;
-        color: #38bdf8;
-        padding: 7px 8px;
-        text-align: left;
-        border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+        background: #1e293b; color: #38bdf8; padding: 6px 7px; text-align: left;
+        border-bottom: 1px solid rgba(56, 189, 248, 0.3); white-space: nowrap;
     }
     .data-table td {
-        padding: 7px 8px;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-        color: #e2e8f0;
+        padding: 6px 7px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); color: #e2e8f0;
+    }
+    .floating-top-btn {
+        position: fixed;
+        bottom: 18px;
+        right: 16px;
+        z-index: 99999;
+        background: rgba(15, 23, 42, 0.88);
+        color: #38bdf8 !important;
+        border: 1px solid rgba(56, 189, 248, 0.6);
+        border-radius: 99px;
+        padding: 7px 13px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 800;
+        text-decoration: none !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+        backdrop-filter: blur(8px);
     }
     """
-    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    st.markdown(f'<div id="top_anchor"></div><style>{css}</style><a href="#top_anchor" class="floating-top-btn">↑ TOP</a>', unsafe_allow_html=True)
 
 inject_css()
 
 # =========================================================================
-# 2. フォーマット ＆ ユーティリティ
+# 2. フォーマット ＆ ビジュアルヘルパー
 # =========================================================================
 def fmt_currency(val, is_jp: bool) -> str:
     if val is None or (isinstance(val, float) and np.isnan(val)):
@@ -288,6 +300,61 @@ def render_echarts(option_dict: dict, height: int = 300):
     """
     components.html(html_code, height=height + 6)
 
+def render_live_clock_bar(sync_interval: int = 30):
+    """秒刻みのリアルタイム時計＋次回自動同期カウントダウン（JS）"""
+    html_code = f"""
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+      body {{ margin:0; background:transparent; font-family:'JetBrains Mono',monospace; }}
+      .bar {{
+        display:flex; justify-content:space-between; align-items:center;
+        background:rgba(15,23,42,0.85); border:1px solid rgba(16,185,129,0.35);
+        border-radius:8px; padding:5px 10px; font-size:11px; color:#e2e8f0;
+      }}
+      .dot {{
+        width:7px; height:7px; background:#10b981; border-radius:50%;
+        display:inline-block; margin-right:6px; box-shadow:0 0 8px #10b981;
+      }}
+      .left {{ display:flex; align-items:center; color:#6ee7b7; font-weight:700; }}
+      .right {{ color:#94a3b8; font-size:10.5px; }}
+      .cnt {{ color:#38bdf8; font-weight:700; }}
+    </style></head><body>
+    <div class="bar">
+      <div class="left"><span class="dot"></span>LIVE FEED <span id="clk" style="margin-left:8px;color:#fff;">--:--:--</span> JST</div>
+      <div class="right">AUTO-SYNC <span id="cd" class="cnt">{sync_interval}s</span></div>
+    </div>
+    <script>
+      var rem = {sync_interval};
+      function tick() {{
+        var now = new Date();
+        var jst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
+        var hh = String(jst.getHours()).padStart(2,'0');
+        var mm = String(jst.getMinutes()).padStart(2,'0');
+        var ss = String(jst.getSeconds()).padStart(2,'0');
+        document.getElementById('clk').textContent = hh + ':' + mm + ':' + ss;
+        document.getElementById('cd').textContent = rem + 's';
+        rem = rem > 1 ? rem - 1 : {sync_interval};
+      }}
+      tick();
+      setInterval(tick, 1000);
+    </script></body></html>
+    """
+    components.html(html_code, height=34)
+
+def build_mini_sparkline_svg(prices: np.ndarray) -> str:
+    if len(prices) < 2:
+        return ""
+    p_min, p_max = float(np.min(prices)), float(np.max(prices))
+    span = max(p_max - p_min, 1e-4)
+    w, h = 92.0, 26.0
+    pts = []
+    for i, p in enumerate(prices):
+        x = round((i / max(len(prices) - 1, 1)) * w, 1)
+        y = round(h - 2.0 - ((float(p) - p_min) / span) * (h - 4.0), 1)
+        pts.append(f"{x},{y}")
+    col = "#10b981" if prices[-1] >= prices[0] else "#ef4444"
+    return f'<svg width="92" height="26" viewBox="0 0 92 26" style="display:block;margin-left:auto;"><polyline fill="none" stroke="{col}" stroke-width="1.8" points="{" ".join(pts)}"/></svg>'
+
 # =========================================================================
 # 3. キャッシュ分離型データ取得関数
 # =========================================================================
@@ -301,7 +368,7 @@ MACRO_TICKERS = {
     "VIX": ("^VIX", "VIX恐怖指数"),
 }
 
-@st.cache_data(ttl=180)
+@st.cache_data(ttl=60)
 def load_macro_data() -> dict:
     codes = [v[0] for v in MACRO_TICKERS.values()]
     out = {}
@@ -323,7 +390,7 @@ def load_macro_data() -> dict:
         pass
     return out
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=45)
 def load_stock_core(code: str) -> dict:
     tkr = yf.Ticker(code)
     df_1d = tkr.history(period="1y", interval="1d", auto_adjust=True)
@@ -331,7 +398,6 @@ def load_stock_core(code: str) -> dict:
         df_1d.index = pd.to_datetime(df_1d.index).tz_localize(None).normalize()
         df_1d = df_1d[~df_1d.index.duplicated(keep="last")]
 
-    # 過去30日の5分足（イントラデイ時間帯クセ抽出 ＆ 場中実測用）
     df_5m = tkr.history(period="1mo", interval="5m", auto_adjust=True)
     if df_5m is not None and not df_5m.empty:
         df_5m = df_5m.dropna(subset=["Close"]).copy()
@@ -406,7 +472,7 @@ def load_stock_core(code: str) -> dict:
         "earnings_hist": earnings_hist, "inst_holders": inst_holders, "opt_data": opt_data
     }
 
-@st.cache_data(ttl=180)
+@st.cache_data(ttl=90)
 def fetch_news_and_sentiment(query: str) -> dict:
     headers = {"User-Agent": "Mozilla/5.0"}
     items_out = []
@@ -434,13 +500,14 @@ def fetch_news_and_sentiment(query: str) -> dict:
 
     tot = max(pos_c + neu_c + neg_c, 1)
     shock_score = round((pos_c - neg_c) / tot, 2)
+    gauge_val = int(np.clip(round(50 + shock_score * 50), 0, 100))
     return {
         "items": items_out, "pos_pct": round(pos_c / tot * 100),
         "neu_pct": round(neu_c / tot * 100), "neg_pct": round(neg_c / tot * 100),
-        "counts": (pos_c, neu_c, neg_c), "shock_score": shock_score
+        "counts": (pos_c, neu_c, neg_c), "shock_score": shock_score, "gauge_val": gauge_val
     }
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=180)
 def fetch_governance_risks(company_name: str) -> list:
     headers = {"User-Agent": "Mozilla/5.0"}
     risks = []
@@ -459,7 +526,7 @@ def fetch_governance_risks(company_name: str) -> list:
     return risks
 
 # =========================================================================
-# 4. 翌営業日 1日完全軌道アルゴリズム（全自動リアルタイム算出）
+# 4. 5分刻みリアル軌道 ＆ 各種クオンツ計算エンジン
 # =========================================================================
 def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
     s_ret = stock_close.pct_change().dropna().tail(90)
@@ -481,23 +548,21 @@ def compute_macro_sensitivity(stock_close: pd.Series, macro_data: dict) -> list:
     results.sort(key=lambda x: abs(x["corr"]), reverse=True)
     return results
 
-def build_next_session_trajectory(
-    curr_px: float, df_1d: pd.DataFrame, df_5m: pd.DataFrame,
-    macro_sens: list, news_res: dict, is_jp: bool, tp_px: float, sl_px: float
+def build_5m_realtime_trajectory(
+    curr_px: float, df_5m: pd.DataFrame, macro_sens: list, news_res: dict, is_jp: bool
 ) -> dict:
-    # 1. セッション時間軸の生成（東証: 09:00-11:30 & 12:30-15:30 / 米国: 09:30-16:00）
+    # 5分刻みスロット生成（東証: 62本 / 米国: 79本）
     if is_jp:
-        am = [f"{h:02d}:{m:02d}" for h in range(9, 12) for m in range(0, 60, 15) if not (h == 11 and m > 30)]
-        pm = [f"{h:02d}:{m:02d}" for h in range(12, 16) for m in range(0, 60, 15) if not (h == 12 and m < 30) and not (h == 15 and m > 30)]
+        am = [f"{h:02d}:{m:02d}" for h in range(9, 12) for m in range(0, 60, 5) if not (h == 11 and m > 30)]
+        pm = [f"{h:02d}:{m:02d}" for h in range(12, 16) for m in range(0, 60, 5) if not (h == 12 and m < 30) and not (h == 15 and m > 30)]
         slots = am + pm
     else:
-        slots = [f"{h:02d}:{m:02d}" for h in range(9, 17) for m in range(0, 60, 15) if not (h == 9 and m < 30) and not (h == 16 and m > 0)]
+        slots = [f"{h:02d}:{m:02d}" for h in range(9, 17) for m in range(0, 60, 5) if not (h == 9 and m < 30) and not (h == 16 and m > 0)]
 
     n_slots = len(slots)
-
-    # 2. 過去5分足から「銘柄固有の時間帯クセ（平均リターン＆ボラ）」を抽出
     slot_means = np.zeros(n_slots)
     slot_stds = np.full(n_slots, 0.003)
+    slot_vols = np.zeros(n_slots)
     actual_today_map = {}
 
     if df_5m is not None and not df_5m.empty:
@@ -506,32 +571,36 @@ def build_next_session_trajectory(
         tmp["_d"] = idx_dt.strftime("%Y-%m-%d")
         tmp["_hm"] = idx_dt.strftime("%H:%M")
 
-        # 過去日の平均イントラデイ波形（始値比%）を算出
-        day_groups = []
         unique_days = sorted(tmp["_d"].unique().tolist())
-        for d_str in unique_days[:-1]:  # 最新日を除く過去日でクセを学習
+        day_ret_maps, day_vol_maps = [], []
+        for d_str in unique_days[:-1]:
             sub = tmp[tmp["_d"] == d_str]
-            if len(sub) < 5: continue
+            if len(sub) < 10: continue
             open_p = float(sub["Open"].iloc[0])
             if open_p <= 0: continue
-            day_map = {}
+            r_map, v_map = {}, {}
             for _, row in sub.iterrows():
                 hm = row["_hm"]
                 if hm in slots:
-                    day_map[hm] = (float(row["Close"]) - open_p) / open_p
-            if day_map:
-                day_groups.append(day_map)
+                    r_map[hm] = (float(row["Close"]) - open_p) / open_p
+                    v_map[hm] = float(row["Volume"])
+            if r_map:
+                day_ret_maps.append(r_map)
+                day_vol_maps.append(v_map)
 
         for i, sl in enumerate(slots):
-            vals = [dg[sl] for dg in day_groups if sl in dg]
-            if len(vals) >= 3:
-                slot_means[i] = float(np.mean(vals))
-                slot_stds[i] = max(float(np.std(vals)), 0.0025)
+            r_vals = [m[sl] for m in day_ret_maps if sl in m]
+            v_vals = [m[sl] for m in day_vol_maps if sl in m]
+            if len(r_vals) >= 3:
+                slot_means[i] = float(np.mean(r_vals))
+                slot_stds[i] = max(float(np.std(r_vals)), 0.0025)
+                slot_vols[i] = float(np.mean(v_vals)) if v_vals else 0.0
             else:
-                # データ不足時は時間経過に応じた緩やかな標準偏差
-                slot_stds[i] = 0.003 + 0.010 * np.sqrt((i + 1) / n_slots)
+                slot_stds[i] = 0.003 + 0.009 * np.sqrt((i + 1) / n_slots)
+                # U字カーブのデフォルト出来高形状
+                u_pos = (i / max(n_slots - 1, 1)) * 2.0 - 1.0
+                slot_vols[i] = 100.0 * (0.4 + 1.4 * (u_pos ** 2))
 
-        # 最新日の実測値（場中答え合わせ用：今日の日付と一致する場合のみ重ね描き）
         today_jst = datetime.datetime.now().strftime("%Y-%m-%d")
         if unique_days and unique_days[-1] == today_jst:
             sub_t = tmp[tmp["_d"] == today_jst]
@@ -539,7 +608,7 @@ def build_next_session_trajectory(
                 if row["_hm"] in slots:
                     actual_today_map[row["_hm"]] = round(float(row["Close"]), 2)
 
-    # 3. マクロβ ＆ 最新ニュースによる「寄り付きギャップ」と「日中ドリフト」の自動算出
+    # マクロβ ＆ ニュース自動補正
     sens_map = {x["key"]: x for x in macro_sens}
     mkt_key = "SOX" if ("SOX" in sens_map and abs(sens_map["SOX"]["corr"]) > 0.35) else ("N225" if "N225" in sens_map else "SP500")
     mkt_info = sens_map.get(mkt_key, {"label": "市場指数", "beta": 0.5, "latest_diff": 0.0})
@@ -548,82 +617,97 @@ def build_next_session_trajectory(
     macro_gap_pct = (mkt_info["latest_diff"] * mkt_info["beta"]) * 0.45
     fx_gap_pct = (fx_info["latest_diff"] * fx_info["beta"]) * 0.35
     news_gap_pct = news_res["shock_score"] * 0.85
-
     total_open_gap_pct = float(np.clip(macro_gap_pct + fx_gap_pct + news_gap_pct, -5.0, 5.0))
     est_open_px = curr_px * (1.0 + total_open_gap_pct / 100.0)
 
-    # 日中トレンドの傾き（ニュースとマクロの追い風を日中にも緩やかに反映）
-    intraday_drift_total = float(np.clip((news_res["shock_score"] * 0.006) + (macro_gap_pct / 100.0 * 0.15), -0.02, 0.02))
+    intraday_drift = float(np.clip((news_res["shock_score"] * 0.006) + (macro_gap_pct / 100.0 * 0.15), -0.02, 0.02))
     vol_boost = 1.0 + abs(news_res["shock_score"]) * 0.30
 
     p50_arr, p85_arr, p15_arr, actual_arr = [], [], [], []
     for i, sl in enumerate(slots):
         frac = i / max(n_slots - 1, 1)
-        mid = est_open_px * (1.0 + slot_means[i] + intraday_drift_total * frac)
+        mid = est_open_px * (1.0 + slot_means[i] + intraday_drift * frac)
         band = est_open_px * slot_stds[i] * vol_boost * 1.15
         p50_arr.append(round(float(mid), 2))
         p85_arr.append(round(float(mid + band), 2))
         p15_arr.append(round(float(max(mid - band, curr_px * 0.5)), 2))
         actual_arr.append(actual_today_map.get(sl, None))
 
-    # 4. 予測波形から「押し目候補時刻」と「ピーク想定時刻」を自動抽出
     idx_min = int(np.argmin(p50_arr))
     idx_max = int(np.argmax(p50_arr))
     est_close_px = p50_arr[-1]
     est_close_chg = round((est_close_px - curr_px) / max(curr_px, 1e-4) * 100.0, 2)
 
     return {
-        "slots": slots,
-        "p50": p50_arr,
-        "p85": p85_arr,
-        "p15": p15_arr,
-        "actual": actual_arr,
-        "has_actual": any(x is not None for x in actual_arr),
-        "est_open_px": est_open_px,
-        "est_open_gap_pct": round(total_open_gap_pct, 2),
-        "est_close_px": est_close_px,
-        "est_close_chg": est_close_chg,
-        "dip_time": slots[idx_min],
-        "dip_px": p50_arr[idx_min],
-        "peak_time": slots[idx_max],
-        "peak_px": p50_arr[idx_max],
+        "slots": slots, "p50": p50_arr, "p85": p85_arr, "p15": p15_arr,
+        "vols": [round(float(v), 1) for v in slot_vols],
+        "actual": actual_arr, "has_actual": any(x is not None for x in actual_arr),
+        "est_open_px": est_open_px, "est_open_gap_pct": round(total_open_gap_pct, 2),
+        "est_close_px": est_close_px, "est_close_chg": est_close_chg,
+        "dip_idx": idx_min, "dip_time": slots[idx_min], "dip_px": p50_arr[idx_min],
+        "peak_idx": idx_max, "peak_time": slots[idx_max], "peak_px": p50_arr[idx_max],
+        "bull_trig": round(p85_arr[min(3, n_slots - 1)], 2),
+        "bear_trig": round(p15_arr[min(3, n_slots - 1)], 2),
         "factors": {
-            "mkt_label": mkt_info["label"],
-            "mkt_diff": mkt_info["latest_diff"],
-            "mkt_beta": mkt_info["beta"],
-            "macro_gap_pct": round(macro_gap_pct, 2),
-            "fx_diff": fx_info["latest_diff"],
-            "fx_beta": fx_info["beta"],
-            "fx_gap_pct": round(fx_gap_pct, 2),
-            "news_shock": news_res["shock_score"],
+            "mkt_label": mkt_info["label"], "mkt_diff": mkt_info["latest_diff"],
+            "mkt_beta": mkt_info["beta"], "macro_gap_pct": round(macro_gap_pct, 2),
+            "fx_diff": fx_info["latest_diff"], "fx_beta": fx_info["beta"],
+            "fx_gap_pct": round(fx_gap_pct, 2), "news_shock": news_res["shock_score"],
             "news_gap_pct": round(news_gap_pct, 2),
         }
     }
 
-def compute_overhead_supply(df_1d: pd.DataFrame, curr_px: float) -> dict:
+def compute_volume_profile_detail(df_1d: pd.DataFrame, curr_px: float, is_jp: bool) -> dict:
     sub = df_1d.tail(250)
     if len(sub) < 20:
-        return {"overhead_pct": 0.0, "poc_px": curr_px}
+        return {"overhead_pct": 0.0, "poc_px": curr_px, "labels": [], "vols": [], "res_px": curr_px, "sup_px": curr_px}
     typ = (sub["High"].values + sub["Low"].values + sub["Close"].values) / 3.0
     vol = sub["Volume"].values.astype(float)
     tot_v = max(float(np.sum(vol)), 1.0)
     above_v = float(np.sum(vol[typ > curr_px * 1.01]))
-    bins = np.linspace(float(np.min(typ)), float(np.max(typ)) + 1e-4, 21)
-    hist = np.bincount(np.clip(np.digitize(typ, bins) - 1, 0, 19), weights=vol, minlength=20)
-    poc_idx = int(np.argmax(hist))
-    poc_px = float((bins[poc_idx] + bins[poc_idx + 1]) * 0.5)
-    return {"overhead_pct": round(above_v / tot_v * 100.0, 1), "poc_px": poc_px}
 
-def generate_investment_memo(corp_name: str, fc: str, curr_px: float, is_jp: bool, info: dict, traj: dict, macro_sens: list, news_res: dict, gov_risks: list, ovh: dict) -> tuple:
+    bins = np.linspace(float(np.min(typ)), float(np.max(typ)) + 1e-4, 15)
+    hist = np.bincount(np.clip(np.digitize(typ, bins) - 1, 0, 13), weights=vol, minlength=14)
+    centers = [(bins[i] + bins[i + 1]) * 0.5 for i in range(14)]
+    poc_idx = int(np.argmax(hist))
+
+    # 仮想板（現在値より上の最大出来高帯＝売り壁、下の最大出来高帯＝買い支え）
+    above_idxs = [i for i, c in enumerate(centers) if c > curr_px * 1.005]
+    below_idxs = [i for i, c in enumerate(centers) if c < curr_px * 0.995]
+    res_px = centers[max(above_idxs, key=lambda i: hist[i])] if above_idxs else curr_px * 1.05
+    sup_px = centers[max(below_idxs, key=lambda i: hist[i])] if below_idxs else curr_px * 0.95
+
+    labels = [fmt_currency(c, is_jp) for c in centers]
+    return {
+        "overhead_pct": round(above_v / tot_v * 100.0, 1),
+        "poc_px": float(centers[poc_idx]),
+        "labels": labels,
+        "vols": [round(float(v) / 1e6, 2) for v in hist],
+        "res_px": float(res_px),
+        "sup_px": float(sup_px)
+    }
+
+def compute_5axis_scores(info: dict, ovh_pct: float, gov_cnt: int) -> list:
+    pe = info.get("trailingPE")
+    val_sc = int(np.clip(100 - (pe - 10) * 1.5, 25, 95)) if pe and pe > 0 else 55
+    rev_g = info.get("revenueGrowth")
+    gro_sc = int(np.clip(55 + rev_g * 120, 20, 98)) if rev_g is not None else 55
+    roe = info.get("returnOnEquity")
+    prf_sc = int(np.clip(45 + roe * 160, 20, 98)) if roe is not None else 55
+    sup_sc = int(np.clip(95 - ovh_pct * 0.85, 20, 95))
+    saf_sc = int(np.clip(95 - gov_cnt * 18, 25, 98))
+    return [val_sc, gro_sc, prf_sc, sup_sc, saf_sc]
+
+def generate_investment_memo(corp_name: str, fc: str, curr_px: float, is_jp: bool, info: dict, traj: dict, macro_sens: list, news_res: dict, gov_risks: list, vp: dict) -> tuple:
     api_key = get_gemini_api_key()
     prompt = f"""あなたはヘッジファンドのシニア・エクイティアナリストです。以下の実測データに基づき、ファンドマネージャー向けの「1分インベストメントメモ」を日本語で簡潔に作成してください。
 銘柄: {corp_name} ({fc}) / 現在値: {fmt_currency(curr_px, is_jp)}
-翌営業日予測: 寄付き {traj['est_open_gap_pct']:+.2f}% / 大引け予測 {traj['est_close_chg']:+.2f}% / 押し目想定 {traj['dip_time']} / ピーク想定 {traj['peak_time']}
-PER: {info.get('trailingPE')} / EV/EBITDA: {info.get('enterpriseToEbitda')} / 目標株価平均: {info.get('targetMeanPrice')} / 上値しこり玉: {ovh['overhead_pct']}%
+翌営業日予測: 寄付き {traj['est_open_gap_pct']:+.2f}% / 大引け予測 {traj['est_close_chg']:+.2f}% / 押し目 {traj['dip_time']} / ピーク {traj['peak_time']}
+PER: {info.get('trailingPE')} / EV/EBITDA: {info.get('enterpriseToEbitda')} / 上値しこり玉: {vp['overhead_pct']}%
 最大マクロ連動: {macro_sens[0]['label'] if macro_sens else '-'} (相関 {macro_sens[0]['corr'] if macro_sens else 0})
 ニュース強気度: {news_res['pos_pct']}% / ガバナンスリスク検知: {len(gov_risks)}件
 
-以下の3セクション構成（合計400文字以内、箇条書き）で出力してください：
+以下の3セクション構成（合計380文字以内、箇条書き）で出力してください：
 🟢 Bull Case（強気シナリオ）
 🔴 Bear Case（弱気・死角リスク）
 ⚡ Next Catalyst（次の注目トリガー）"""
@@ -645,25 +729,25 @@ PER: {info.get('trailingPE')} / EV/EBITDA: {info.get('enterpriseToEbitda')} / �
     top_m = macro_sens[0] if macro_sens else {"label": "市場指数", "corr": 0.0, "beta": 1.0}
     target_m = info.get("targetMeanPrice")
     upside_s = f"{(target_m/curr_px - 1)*100:+.1f}%" if target_m else "算出不可"
-    bull = f"・アナリスト目標株価との乖離は {upside_s}、翌営業日の大引け予測は {traj['est_close_chg']:+.2f}%。\n・ニュース強気度 {news_res['pos_pct']}%、上値しこり玉は {ovh['overhead_pct']}%。"
-    bear = f"・{top_m['label']}との相関係数が {top_m['corr']}（β={top_m['beta']}）と高く、夜間マクロ急変時の連れ安リスクあり。\n・ガバナンス関連報道は {len(gov_risks)}件検知（{'要精査' if gov_risks else '現時点でクリーン'}）。"
-    cat = f"・明日は {traj['dip_time']} 頃の押し目反発と {traj['peak_time']} 頃のピーク形成が焦点。{top_m['label']}の動向を監視。"
+    bull = f"・アナリスト目標乖離 {upside_s}、翌営業日の大引け予測 {traj['est_close_chg']:+.2f}%。\n・ニュース強気度 {news_res['pos_pct']}%、上値しこり玉 {vp['overhead_pct']}%。"
+    bear = f"・{top_m['label']}との相関係数 {top_m['corr']}（β={top_m['beta']}）でマクロ急変時の連れ安リスクあり。\n・ガバナンス報道は {len(gov_risks)}件検知（{'要精査' if gov_risks else '現時点でクリーン'}）。"
+    cat = f"・明日は {traj['dip_time']} 頃の押し目反発と {traj['peak_time']} 頃のピーク形成が焦点。"
     return f"🟢 Bull Case（強気シナリオ）\n{bull}\n\n🔴 Bear Case（弱気・死角リスク）\n{bear}\n\n⚡ Next Catalyst（次の注目トリガー）\n{cat}", "⚙️ クオンツ自動ルール生成（Gemini API未設定時）"
 
 # =========================================================================
-# 5. ヘッダー ＆ コントロール
+# 5. 固定ヘッダー ＆ 入力コントロール
 # =========================================================================
-h_col1, h_col2 = st.columns([3.2, 1.2])
+h_col1, h_col2 = st.columns([3.1, 1.3])
 with h_col1:
     st.markdown(
-        '<div class="glass-header" style="margin-bottom:8px;">'
-        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v3</div>'
-        '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">翌営業日1日完全軌道アルゴリズム × マクロβ × 機関投資家ディープ監査</div>'
+        '<div class="glass-header" style="margin-bottom:6px;">'
+        '<div class="brand-luxury">YAMASHISHI DEEP DIVE v4</div>'
+        '<div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">5分刻み翌営業日軌道 × 自動ライブ同期 × 機関投資家監査</div>'
         '</div>',
         unsafe_allow_html=True
     )
 with h_col2:
-    st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
     st.link_button("⬅️ LABへ戻る", LAB_APP_URL, use_container_width=True)
 
 STYLES = ["デイトレード", "スキャルピング", "スイングトレード", "バイ＆ホールド"]
@@ -672,306 +756,345 @@ query_code = str(qp_code[0] if isinstance(qp_code, list) else qp_code).strip().u
 qp_style = st.query_params.get("style", "デイトレード")
 query_style = str(qp_style[0] if isinstance(qp_style, list) else qp_style).strip()
 
-c1, c2, c3 = st.columns([2.1, 1.4, 1.1])
+c1, c2 = st.columns([2.2, 1.6])
 in_code = c1.text_input("銘柄コード", value=query_code, placeholder="例: NVDA / 6920", label_visibility="collapsed")
 in_style = c2.selectbox("スタイル", STYLES, index=STYLES.index(query_style) if query_style in STYLES else 0, label_visibility="collapsed")
-if c3.button("🔄 最新同期", use_container_width=True, type="primary"):
-    st.cache_data.clear()
-    st.rerun()
 
 fc = in_code.strip().upper()
 if not fc: st.stop()
 if re.match(r"^[0-9]{3}[0-9A-Z]$", fc): fc = f"{fc}.T"
 is_jp = fc.endswith(".T")
 
-with st.spinner(f"📡 【{fc}】の5分足クセ・最新マクロ・ニュースをリアルタイム統合中..."):
-    data = load_stock_core(fc)
-    macro_data = load_macro_data()
-
-df_1d, df_5m, info = data["df_1d"], data["df_5m"], data["info"]
-if df_1d is None or df_1d.empty:
-    st.error(f"❌ 銘柄コード `{fc}` の市場データを取得できませんでした。")
-    st.stop()
-
-corp_name = info.get("longName") or info.get("shortName") or fc
-sector = info.get("sector") or "セクター未分類"
-industry = info.get("industry") or "-"
-curr_px = float(df_1d["Close"].iloc[-1])
-prev_px = float(df_1d["Close"].iloc[-2]) if len(df_1d) >= 2 else curr_px
-chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
-chg_col = "#10b981" if chg_pct >= 0 else "#ef4444"
-
-# ATR14 ＆ スタイル別 TP/SL
-h_arr, l_arr, c_arr = df_1d["High"].values, df_1d["Low"].values, df_1d["Close"].values
-prev_c = np.roll(c_arr, 1); prev_c[0] = c_arr[0]
-atr14 = float(np.mean(np.maximum(h_arr - l_arr, np.maximum(np.abs(h_arr - prev_c), np.abs(l_arr - prev_c)))[-14:]))
-mult_map = {"スキャルピング": (0.5, 0.9), "デイトレード": (0.7, 1.4), "スイングトレード": (1.5, 3.0), "バイ＆ホールド": (2.5, 5.0)}
-sl_m, tp_m = mult_map.get(in_style, (0.7, 1.4))
-tp_px = curr_px + atr14 * tp_m
-sl_px = max(curr_px - atr14 * sl_m, curr_px * 0.5)
-
-macro_sens = compute_macro_sensitivity(df_1d["Close"], macro_data)
-news_res = fetch_news_and_sentiment(f"{corp_name} OR {fc.replace('.T', '')} 株価")
-gov_risks = fetch_governance_risks(corp_name)
-ovh_data = compute_overhead_supply(df_1d, curr_px)
-traj = build_next_session_trajectory(curr_px, df_1d, df_5m, macro_sens, news_res, is_jp, tp_px, sl_px)
-
 # =========================================================================
-# 6. トップ企業カード ＆ 4大サマリー（常時表示）
+# 6. 自動ライブ更新セクション（30秒ごとに裏で自動同期＋秒刻み時計）
 # =========================================================================
-target_mean = info.get("targetMeanPrice")
-upside_str = f"{((target_mean - curr_px)/curr_px*100):+.1f}%" if (target_mean and curr_px > 0) else "-"
-risk_status = f"⚠️ {len(gov_risks)}件検知" if gov_risks else "🟢 クリーン"
-risk_col = "#f87171" if gov_risks else "#10b981"
-open_col = "#10b981" if traj["est_open_gap_pct"] >= 0 else "#ef4444"
+def render_live_terminal(fc_code: str, style_name: str, is_jp_flag: bool):
+    render_live_clock_bar(sync_interval=30)
 
-st.markdown(f"""
-<div class="rank-card">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
-    <div>
-      <div>
-        <span class="pill-badge">{html.escape(fc)}</span>
-        <span class="pill-badge" style="border-color:rgba(168,85,247,0.45);background:rgba(168,85,247,0.16);color:#e9d5ff;">{html.escape(in_style)}</span>
-      </div>
-      <div style="font-size:19px;font-weight:800;color:#ffffff;margin-top:4px;">{html.escape(corp_name)}</div>
-      <div style="font-size:11.5px;color:#94a3b8;margin-top:2px;">🏢 {html.escape(sector)} / {html.escape(industry)}</div>
-    </div>
-    <div style="text-align:right;">
-      <div style="font-size:10px;color:#64748b;font-weight:700;">LIVE REFERENCE PRICE</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:800;color:#ffffff;">{fmt_currency(curr_px, is_jp)}</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;color:{chg_col};">{chg_pct:+.2f}%</div>
-    </div>
-  </div>
-  <div class="winrate-bar">
-    <div><div class="metric-lbl">明日寄付き予測</div><div class="metric-val" style="color:{open_col};">{traj['est_open_gap_pct']:+.2f}%</div></div>
-    <div><div class="metric-lbl">アナリスト目標乖離</div><div class="metric-val" style="color:#fde047;">{upside_str}</div></div>
-    <div><div class="metric-lbl">上値しこり玉比率</div><div class="metric-val" style="color:#c084fc;">{ovh_data['overhead_pct']}%</div></div>
-    <div><div class="metric-lbl">ガバナンス監査</div><div class="metric-val" style="color:{risk_col};">{risk_status}</div></div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    with st.spinner(f"📡 【{fc_code}】の5分足波形・マクロ・ニュースをライブ同期中..."):
+        data = load_stock_core(fc_code)
+        macro_data = load_macro_data()
 
-# =========================================================================
-# 7. 4タブ集約ビュー（メイン：翌営業日1日完全軌道）
-# =========================================================================
-tab1, tab2, tab3, tab4 = st.tabs([
-    "翌営業日 1日軌道",
-    "マクロβ・決算",
-    "プロ財務・需給",
-    "リスク・AIメモ"
-])
+    df_1d, df_5m, info = data["df_1d"], data["df_5m"], data["info"]
+    if df_1d is None or df_1d.empty:
+        st.error(f"❌ 銘柄コード `{fc_code}` の市場データを取得できませんでした。")
+        return
 
-# -------------------------------------------------------------------------
-# TAB 1: 翌営業日 1日軌道リアルタイム予測（全自動）
-# -------------------------------------------------------------------------
-with tab1:
-    sync_ts = datetime.datetime.now().strftime("%H:%M")
+    corp_name = info.get("longName") or info.get("shortName") or fc_code
+    sector = info.get("sector") or "セクター未分類"
+    industry = info.get("industry") or "-"
+    curr_px = float(df_1d["Close"].iloc[-1])
+    prev_px = float(df_1d["Close"].iloc[-2]) if len(df_1d) >= 2 else curr_px
+    chg_pct = ((curr_px - prev_px) / max(prev_px, 1e-4)) * 100.0
+    chg_col = "#10b981" if chg_pct >= 0 else "#ef4444"
+
+    macro_sens = compute_macro_sensitivity(df_1d["Close"], macro_data)
+    news_res = fetch_news_and_sentiment(f"{corp_name} OR {fc_code.replace('.T', '')} 株価")
+    gov_risks = fetch_governance_risks(corp_name)
+    vp = compute_volume_profile_detail(df_1d, curr_px, is_jp_flag)
+    traj = build_5m_realtime_trajectory(curr_px, df_5m, macro_sens, news_res, is_jp_flag)
+
+    # 52週レンジ計算
+    hi_52 = float(df_1d["High"].max())
+    lo_52 = float(df_1d["Low"].min())
+    pos_52 = float(np.clip((curr_px - lo_52) / max(hi_52 - lo_52, 1e-4) * 100.0, 2.0, 98.0))
+    spark_svg = build_mini_sparkline_svg(df_1d["Close"].tail(20).values)
+
+    # 動的オーラ（明日予測がプラスならエメラルド、マイナスならクリムゾン）
+    aura_col = "#10b981" if traj["est_open_gap_pct"] >= 0 else "#ef4444"
+    aura_glow = "rgba(16,185,129,0.22)" if traj["est_open_gap_pct"] >= 0 else "rgba(239,68,68,0.22)"
+    target_mean = info.get("targetMeanPrice")
+    upside_str = f"{((target_mean - curr_px)/curr_px*100):+.1f}%" if (target_mean and curr_px > 0) else "-"
+    risk_status = f"⚠️ {len(gov_risks)}件" if gov_risks else "🟢 クリーン"
+    risk_col = "#f87171" if gov_risks else "#10b981"
+
+    # --- リッチ化された銘柄トップカード ---
     st.markdown(f"""
-    <div class="trajectory-header">
-      <div class="trajectory-title">NEXT SESSION TRAJECTORY <span>// 翌営業日 1日軌道リアルタイム予測</span></div>
-      <div class="live-pill"><span class="live-dot"></span>AUTO-SYNC {sync_ts}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    series_list = [
-        {"name": "強気レンジ(85%)", "type": "line", "data": traj["p85"], "smooth": True, "lineStyle": {"color": "#10b981", "width": 1.5, "type": "dashed"}, "showSymbol": False},
-        {"name": "予測中央値", "type": "line", "data": traj["p50"], "smooth": True, "lineStyle": {"color": "#38bdf8", "width": 3.0}, "areaStyle": {"color": "rgba(56,189,248,0.12)"}, "showSymbol": False},
-        {"name": "弱気レンジ(15%)", "type": "line", "data": traj["p15"], "smooth": True, "lineStyle": {"color": "#ef4444", "width": 1.5, "type": "dashed"}, "showSymbol": False},
-        {"name": "前日終値", "type": "line", "data": [round(curr_px, 2)] * len(traj["slots"]), "lineStyle": {"color": "rgba(148,163,184,0.45)", "type": "dotted", "width": 1.2}, "showSymbol": False}
-    ]
-    legend_names = ["強気レンジ(85%)", "予測中央値", "弱気レンジ(15%)", "前日終値"]
-
-    if traj["has_actual"]:
-        series_list.insert(0, {"name": "当日実測", "type": "line", "data": traj["actual"], "lineStyle": {"color": "#ffffff", "width": 2.8}, "showSymbol": True, "symbolSize": 4})
-        legend_names.insert(0, "当日実測")
-
-    opt_traj = {
-        "backgroundColor": "#0b1120",
-        "tooltip": {"trigger": "axis"},
-        "legend": {"data": legend_names, "textStyle": {"color": "#cbd5e1", "fontSize": 10}, "top": 4},
-        "grid": {"top": 34, "bottom": 26, "left": 58, "right": 16},
-        "xAxis": {"type": "category", "data": traj["slots"], "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-        "yAxis": {"type": "value", "scale": True, "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-        "series": series_list
-    }
-    render_echarts(opt_traj, height=320)
-
-    # ① 軌道修正の内訳（Factor Attribution）
-    f = traj["factors"]
-    st.markdown(f"""
-    <div class="dark-box">
-      <div style="font-size:11.5px;font-weight:800;color:#38bdf8;margin-bottom:6px;letter-spacing:0.5px;">FACTOR ATTRIBUTION // 軌道自動修正の内訳</div>
-      <div class="factor-row">
-        <span>主連動マクロ（{html.escape(f['mkt_label'])} {f['mkt_diff']:+.2f}% × β {f['mkt_beta']:+.2f}）</span>
-        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['macro_gap_pct']>=0 else '#ef4444'};">{f['macro_gap_pct']:+.2f}%</span>
+    <div class="rank-card" style="border-left-color:{aura_col};box-shadow:0 8px 26px {aura_glow};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+        <div style="min-width:0;flex:1;">
+          <div>
+            <span class="pill-badge">{html.escape(fc_code)}</span>
+            <span class="pill-badge" style="border-color:rgba(168,85,247,0.45);background:rgba(168,85,247,0.16);color:#e9d5ff;">{html.escape(style_name)}</span>
+          </div>
+          <div style="font-size:17.5px;font-weight:800;color:#ffffff;margin-top:4px;word-break:break-word;">{html.escape(corp_name)}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">{html.escape(sector)} / {html.escape(industry)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:19.5px;font-weight:800;color:#ffffff;">{fmt_currency(curr_px, is_jp_flag)}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:{chg_col};margin-bottom:3px;">{chg_pct:+.2f}%</div>
+          {spark_svg}
+        </div>
       </div>
-      <div class="factor-row">
-        <span>為替インパクト（ドル円 {f['fx_diff']:+.2f}% × β {f['fx_beta']:+.2f}）</span>
-        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['fx_gap_pct']>=0 else '#ef4444'};">{f['fx_gap_pct']:+.2f}%</span>
+
+      <div style="margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#94a3b8;font-family:'JetBrains Mono',monospace;">
+          <span>52W安 {fmt_currency(lo_52, is_jp_flag)}</span>
+          <span style="color:#7dd3fc;">52W位置 {pos_52:.0f}%</span>
+          <span>52W高 {fmt_currency(hi_52, is_jp_flag)}</span>
+        </div>
+        <div class="range-track"><div class="range-dot" style="left:{pos_52:.1f}%;"></div></div>
       </div>
-      <div class="factor-row">
-        <span>最新ニュース修正（強気度 {news_res['pos_pct']}% / 衝撃係数 {f['news_shock']:+.2f}）</span>
-        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['news_gap_pct']>=0 else '#ef4444'};">{f['news_gap_pct']:+.2f}%</span>
-      </div>
-      <div class="factor-row">
-        <span>合成・明日寄付き予測（{fmt_currency(traj['est_open_px'], is_jp)}） → 大引け予測（{fmt_currency(traj['est_close_px'], is_jp)}）</span>
-        <span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if traj['est_close_chg']>=0 else '#ef4444'};">{traj['est_close_chg']:+.2f}%</span>
+
+      <div class="winrate-bar">
+        <div><div class="metric-lbl">明日寄付き予測</div><div class="metric-val" style="color:{aura_col};">{traj['est_open_gap_pct']:+.2f}%</div></div>
+        <div><div class="metric-lbl">アナリスト乖離</div><div class="metric-val" style="color:#fde047;">{upside_str}</div></div>
+        <div><div class="metric-lbl">上値しこり玉</div><div class="metric-val" style="color:#c084fc;">{vp['overhead_pct']}%</div></div>
+        <div><div class="metric-lbl">ガバナンス</div><div class="metric-val" style="color:{risk_col};">{risk_status}</div></div>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ② 時間帯別・戦術タイムライン
-    open_stance = "ギャップアップ想定。初動の飛びつき買いを避け、押し目形成を待機。" if traj["est_open_gap_pct"] > 0.4 else ("ギャップダウン想定。下値支持の確認後に反発狙い。" if traj["est_open_gap_pct"] < -0.4 else "フラット寄付き想定。初動レンジのブレイク方向を確認。")
-    st.markdown(f"""
-    <div class="quant-box">
-      <div style="font-size:11.5px;font-weight:800;color:#6ee7b7;margin-bottom:8px;letter-spacing:0.5px;">TACTICAL TIMELINE // 時間帯別・自動戦術マップ</div>
-      <div class="timeline-item"><b>{traj['slots'][0]}（寄付き初動）:</b> 想定始値 <b>{fmt_currency(traj['est_open_px'], is_jp)}</b>（{traj['est_open_gap_pct']:+.2f}%）。{open_stance}</div>
-      <div class="timeline-item" style="border-left-color:#f59e0b;"><b>{traj['dip_time']} 前後（押し目候補ゾーン）:</b> 過去5分足波形上、最も押しやすい時間帯（予測中央値 <b>{fmt_currency(traj['dip_px'], is_jp)}</b>）。反発確認のエントリー目安。</div>
-      <div class="timeline-item" style="border-left-color:#10b981;"><b>{traj['peak_time']} 前後（ピーク想定ゾーン）:</b> 1日の高値圏（予測中央値 <b>{fmt_currency(traj['peak_px'], is_jp)}</b>）。分割利確・トレール引き上げの目安。</div>
-    </div>
-    """, unsafe_allow_html=True)
+    # --- 4タブ集約ビュー ---
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "翌営業日 1日軌道",
+        "マクロβ・決算",
+        "プロ財務・板構造",
+        "リスク・AIメモ"
+    ])
 
-# -------------------------------------------------------------------------
-# TAB 2: マクロ感応度マトリクス ＆ 決算サプライズ履歴
-# -------------------------------------------------------------------------
-with tab2:
-    st.markdown("##### マクロ感応度マトリクス（過去90営業日の相関・β）")
-    if macro_sens:
-        opt_corr = {
+    # ---------------------------------------------------------------------
+    # TAB 1: 5分刻み翌営業日1日軌道 ＋ 出来高U字カーブ ＋ 3シナリオ分岐
+    # ---------------------------------------------------------------------
+    with tab1:
+        st.markdown(
+            '<div class="trajectory-header">'
+            '<div class="trajectory-title">NEXT SESSION 5M TRAJECTORY <span>// 翌営業日 5分刻み完全軌道</span></div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+        series_list = [
+            {
+                "name": "想定出来高", "type": "bar", "yAxisIndex": 1, "data": traj["vols"],
+                "itemStyle": {"color": "rgba(148,163,184,0.18)"}, "barMaxWidth": 6
+            },
+            {
+                "name": "強気レンジ(85%)", "type": "line", "yAxisIndex": 0, "data": traj["p85"],
+                "smooth": False, "lineStyle": {"color": "#10b981", "width": 1.2, "type": "dashed"}, "showSymbol": False
+            },
+            {
+                "name": "予測中央値", "type": "line", "yAxisIndex": 0, "data": traj["p50"],
+                "smooth": False, "lineStyle": {"color": "#38bdf8", "width": 2.4},
+                "areaStyle": {"color": "rgba(56,189,248,0.10)"}, "showSymbol": False,
+                "markPoint": {
+                    "symbolSize": 36, "label": {"fontSize": 9, "color": "#050811", "fontWeight": "bold"},
+                    "data": [
+                        {"name": "押目", "coord": [traj["dip_idx"], traj["dip_px"]], "value": "押目", "itemStyle": {"color": "#f59e0b"}},
+                        {"name": "高値", "coord": [traj["peak_idx"], traj["peak_px"]], "value": "高値", "itemStyle": {"color": "#10b981"}}
+                    ]
+                }
+            },
+            {
+                "name": "弱気レンジ(15%)", "type": "line", "yAxisIndex": 0, "data": traj["p15"],
+                "smooth": False, "lineStyle": {"color": "#ef4444", "width": 1.2, "type": "dashed"}, "showSymbol": False
+            }
+        ]
+        legend_names = ["強気レンジ(85%)", "予測中央値", "弱気レンジ(15%)", "想定出来高"]
+        if traj["has_actual"]:
+            series_list.append({"name": "当日実測", "type": "line", "yAxisIndex": 0, "data": traj["actual"], "lineStyle": {"color": "#ffffff", "width": 2.5}, "showSymbol": False})
+            legend_names.insert(0, "当日実測")
+
+        opt_traj = {
             "backgroundColor": "#0b1120",
             "tooltip": {"trigger": "axis"},
-            "grid": {"top": 18, "bottom": 24, "left": 88, "right": 24},
-            "xAxis": {"type": "value", "min": -1, "max": 1, "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-            "yAxis": {"type": "category", "data": [x["label"] for x in macro_sens][::-1], "axisLabel": {"color": "#e2e8f0", "fontSize": 11}},
-            "series": [{"type": "bar", "data": [
-                {"value": x["corr"], "itemStyle": {"color": "#10b981" if x["corr"] >= 0 else "#ef4444"}}
-                for x in macro_sens[::-1]
-            ]}]
+            "legend": {"data": legend_names, "textStyle": {"color": "#cbd5e1", "fontSize": 9.5}, "top": 2},
+            "grid": {"top": 34, "bottom": 22, "left": 6, "right": 8, "containLabel": True},
+            "xAxis": {"type": "category", "data": traj["slots"], "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+            "yAxis": [
+                {"type": "value", "scale": True, "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+                {"type": "value", "show": False, "max": max(traj["vols"] + [1]) * 4.5}
+            ],
+            "series": series_list
         }
-        render_echarts(opt_corr, height=230)
+        render_echarts(opt_traj, height=310)
 
-        rows_m = "".join([
-            f"<tr><td><b>{html.escape(x['label'])}</b></td>"
-            f"<td style='color:{'#10b981' if x['corr']>=0 else '#ef4444'};font-weight:700;'>{x['corr']:+.2f}</td>"
-            f"<td>{x['beta']:+.2f}</td>"
-            f"<td style='color:{'#10b981' if x['latest_diff']>=0 else '#ef4444'};'>{x['latest_diff']:+.2f}%</td></tr>"
-            for x in macro_sens
-        ])
-        st.markdown(f'<div class="dark-box"><table class="data-table"><thead><tr><th>マクロ指標</th><th>相関係数</th><th>感応度(β)</th><th>直近変動</th></tr></thead><tbody>{rows_m}</tbody></table></div>', unsafe_allow_html=True)
+        # 明日・3シナリオ分岐カード
+        st.markdown(f"""
+        <div class="scenario-grid">
+          <div class="scenario-card" style="border-top:3px solid #10b981;">
+            <div style="font-weight:800;color:#6ee7b7;">強気突破 (確率 25%)</div>
+            <div style="color:#cbd5e1;margin-top:3px;">トリガー: <b>{fmt_currency(traj['bull_trig'], is_jp_flag)}</b> 超え<br>上値目安: <b>{fmt_currency(max(traj['p85']), is_jp_flag)}</b></div>
+          </div>
+          <div class="scenario-card" style="border-top:3px solid #38bdf8;">
+            <div style="font-weight:800;color:#7dd3fc;">標準レンジ (確率 55%)</div>
+            <div style="color:#cbd5e1;margin-top:3px;">押し目: <b>{traj['dip_time']}</b> ({fmt_currency(traj['dip_px'], is_jp_flag)})<br>大引け: <b>{fmt_currency(traj['est_close_px'], is_jp_flag)}</b></div>
+          </div>
+          <div class="scenario-card" style="border-top:3px solid #ef4444;">
+            <div style="font-weight:800;color:#fca5a5;">急落警戒 (確率 20%)</div>
+            <div style="color:#cbd5e1;margin-top:3px;">トリガー: <b>{fmt_currency(traj['bear_trig'], is_jp_flag)}</b> 割れ<br>下値目安: <b>{fmt_currency(min(traj['p15']), is_jp_flag)}</b></div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("##### 決算サプライズ履歴（予想EPS vs 実績EPS）")
-    eh = data["earnings_hist"]
-    if eh:
-        rows_e = ""
-        for e in eh:
-            est_s = f"{e['est']:.2f}" if e["est"] is not None else "-"
-            rep_s = f"{e['rep']:.2f}" if e["rep"] is not None else "発表待ち"
-            if e["surp"] is not None:
-                sc = "#10b981" if e["surp"] >= 0 else "#ef4444"
-                surp_s = f"<span style='color:{sc};font-weight:800;'>{e['surp']:+.1f}%</span>"
-            else:
-                surp_s = "-"
-            rows_e += f"<tr><td>{html.escape(e['date'])}</td><td>{est_s}</td><td>{rep_s}</td><td>{surp_s}</td></tr>"
-        st.markdown(f'<div class="dark-box"><table class="data-table"><thead><tr><th>決算日</th><th>予想EPS</th><th>実績EPS</th><th>サプライズ</th></tr></thead><tbody>{rows_e}</tbody></table></div>', unsafe_allow_html=True)
-    else:
-        st.caption("ℹ️ この銘柄のEPSサプライズ履歴はyfinanceから取得できませんでした。")
+        # 軌道修正の内訳
+        f = traj["factors"]
+        st.markdown(f"""
+        <div class="dark-box">
+          <div style="font-size:11px;font-weight:800;color:#38bdf8;margin-bottom:5px;">FACTOR ATTRIBUTION // 軌道自動修正の内訳</div>
+          <div class="factor-row"><span>主連動（{html.escape(f['mkt_label'])} {f['mkt_diff']:+.2f}% × β{f['mkt_beta']:+.2f}）</span><span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['macro_gap_pct']>=0 else '#ef4444'};">{f['macro_gap_pct']:+.2f}%</span></div>
+          <div class="factor-row"><span>為替（ドル円 {f['fx_diff']:+.2f}% × β{f['fx_beta']:+.2f}）</span><span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['fx_gap_pct']>=0 else '#ef4444'};">{f['fx_gap_pct']:+.2f}%</span></div>
+          <div class="factor-row"><span>最新ニュース修正（強気度 {news_res['pos_pct']}%）</span><span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if f['news_gap_pct']>=0 else '#ef4444'};">{f['news_gap_pct']:+.2f}%</span></div>
+          <div class="factor-row"><span>合成・明日寄付き予測 → 大引け予測</span><span style="font-family:'JetBrains Mono',monospace;color:{'#10b981' if traj['est_close_chg']>=0 else '#ef4444'};">{traj['est_open_gap_pct']:+.2f}% → {traj['est_close_chg']:+.2f}%</span></div>
+        </div>
+        """, unsafe_allow_html=True)
 
-# -------------------------------------------------------------------------
-# TAB 3: プロ仕様財務 ＆ 空売り・しこり玉レーダー
-# -------------------------------------------------------------------------
-with tab3:
-    ev_ebitda = f"{info.get('enterpriseToEbitda'):.1f}倍" if info.get("enterpriseToEbitda") else "-"
-    peg_r = f"{info.get('pegRatio'):.2f}" if info.get("pegRatio") else "-"
-    fcf = info.get("freeCashflow")
-    mcap_raw = info.get("marketCap")
-    fcf_yield = f"{(fcf / mcap_raw * 100):.2f}%" if (fcf and mcap_raw and mcap_raw > 0) else "-"
-    short_pct = f"{info.get('shortPercentOfFloat')*100:.1f}%" if info.get("shortPercentOfFloat") else "-"
-    short_ratio = f"{info.get('shortRatio'):.1f}日" if info.get("shortRatio") else "-"
+        # 時間帯別・戦術タイムライン
+        st.markdown(f"""
+        <div class="quant-box">
+          <div style="font-size:11px;font-weight:800;color:#6ee7b7;margin-bottom:6px;">TACTICAL TIMELINE // 時間帯別・自動戦術マップ</div>
+          <div class="timeline-item"><b>{traj['slots'][0]} 寄付き:</b> 想定始値 <b>{fmt_currency(traj['est_open_px'], is_jp_flag)}</b>。初動5分の方向確定を待機。</div>
+          <div class="timeline-item" style="border-left-color:#f59e0b;"><b>{traj['dip_time']} 押し目候補:</b> 予測中央値 <b>{fmt_currency(traj['dip_px'], is_jp_flag)}</b>。過去波形上最も押しやすい時間帯。</div>
+          <div class="timeline-item" style="border-left-color:#10b981;"><b>{traj['peak_time']} ピーク想定:</b> 予測中央値 <b>{fmt_currency(traj['peak_px'], is_jp_flag)}</b>。分割利確の目安。</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="winrate-bar" style="margin-bottom:10px;">
-      <div><div class="metric-lbl">EV / EBITDA</div><div class="metric-val">{ev_ebitda}</div></div>
-      <div><div class="metric-lbl">FCF利回り</div><div class="metric-val" style="color:#10b981;">{fcf_yield}</div></div>
-      <div><div class="metric-lbl">PEGレシオ</div><div class="metric-val" style="color:#fde047;">{peg_r}</div></div>
-      <div><div class="metric-lbl">空売り比率 / 日数</div><div class="metric-val" style="color:#f87171;">{short_pct} / {short_ratio}</div></div>
-    </div>
-    """, unsafe_allow_html=True)
+    # ---------------------------------------------------------------------
+    # TAB 2: マクロβ感応度 ＆ EPS比較バーチャート
+    # ---------------------------------------------------------------------
+    with tab2:
+        st.markdown("##### マクロ感応度マトリクス（過去90営業日の相関・β）")
+        if macro_sens:
+            opt_corr = {
+                "backgroundColor": "#0b1120",
+                "tooltip": {"trigger": "axis"},
+                "grid": {"top": 12, "bottom": 20, "left": 6, "right": 14, "containLabel": True},
+                "xAxis": {"type": "value", "min": -1, "max": 1, "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+                "yAxis": {"type": "category", "data": [x["label"] for x in macro_sens][::-1], "axisLabel": {"color": "#e2e8f0", "fontSize": 10.5}},
+                "series": [{"type": "bar", "data": [{"value": x["corr"], "itemStyle": {"color": "#10b981" if x["corr"] >= 0 else "#ef4444"}} for x in macro_sens[::-1]]}]
+            }
+            render_echarts(opt_corr, height=220)
 
-    if info.get("shortPercentOfFloat") and info["shortPercentOfFloat"] >= 0.15:
-        st.markdown(f'<div class="warning-box"><b>ショートスクイーズ（空売り踏み上げ）警戒</b><br>浮動株に対する空売り比率が <b>{short_pct}</b>（カバー日数 {short_ratio}）と高水準です。</div>', unsafe_allow_html=True)
+            rows_m = "".join([f"<tr><td><b>{html.escape(x['label'])}</b></td><td style='color:{'#10b981' if x['corr']>=0 else '#ef4444'};font-weight:700;'>{x['corr']:+.2f}</td><td>{x['beta']:+.2f}</td><td style='color:{'#10b981' if x['latest_diff']>=0 else '#ef4444'};'>{x['latest_diff']:+.2f}%</td></tr>" for x in macro_sens])
+            st.markdown(f'<div class="dark-box"><div class="table-wrap"><table class="data-table"><thead><tr><th>マクロ指標</th><th>相関係数</th><th>感応度(β)</th><th>直近変動</th></tr></thead><tbody>{rows_m}</tbody></table></div></div>', unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="dark-box">
-      <b>価格帯別出来高（Volume Profile）しこり玉診断（過去1年）</b><br>
-      ・<b>現在値より上の戻り売り（しこり玉）比率:</b> <b style="color:#c084fc;">{ovh_data['overhead_pct']}%</b><br>
-      ・<b>1年最大出来高価格帯 (POC):</b> <b>{fmt_currency(ovh_data['poc_px'], is_jp)}</b>（{'現在値はPOCより上方＝下値支持' if curr_px >= ovh_data['poc_px'] else '現在値はPOCより下方＝上値抵抗'}）
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown("##### 決算サプライズ（予想EPS vs 実績EPS）")
+        eh = [e for e in data["earnings_hist"] if e["est"] is not None or e["rep"] is not None]
+        if eh:
+            eh_rev = eh[::-1]
+            opt_eps = {
+                "backgroundColor": "#0b1120",
+                "tooltip": {"trigger": "axis"},
+                "legend": {"data": ["予想EPS", "実績EPS"], "textStyle": {"color": "#cbd5e1", "fontSize": 10}, "top": 2},
+                "grid": {"top": 30, "bottom": 20, "left": 6, "right": 10, "containLabel": True},
+                "xAxis": {"type": "category", "data": [e["date"][2:7] for e in eh_rev], "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+                "yAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+                "series": [
+                    {"name": "予想EPS", "type": "bar", "data": [e["est"] for e in eh_rev], "itemStyle": {"color": "#64748b"}},
+                    {"name": "実績EPS", "type": "bar", "data": [{"value": e["rep"], "itemStyle": {"color": "#10b981" if (e["surp"] or 0) >= 0 else "#ef4444"}} for e in eh_rev]}
+                ]
+            }
+            render_echarts(opt_eps, height=210)
+        else:
+            st.caption("ℹ️ この銘柄のEPSサプライズ履歴はyfinanceから取得できませんでした。")
 
-    q_fin = data["q_fin"]
-    if q_fin:
-        scale_div = 1e8 if is_jp else 1e9
-        unit_lbl = "億円" if is_jp else "B$"
-        opt_fin = {
+    # ---------------------------------------------------------------------
+    # TAB 3: 5軸レーダー ＋ 横棒Volume Profile（仮想板） ＋ 四半期財務
+    # ---------------------------------------------------------------------
+    with tab3:
+        scores_5 = compute_5axis_scores(info, vp["overhead_pct"], len(gov_risks))
+        opt_radar = {
             "backgroundColor": "#0b1120",
-            "tooltip": {"trigger": "axis"},
-            "legend": {"data": [f"売上高({unit_lbl})", f"純利益({unit_lbl})"], "textStyle": {"color": "#cbd5e1", "fontSize": 10}, "top": 4},
-            "grid": {"top": 34, "bottom": 24, "left": 55, "right": 18},
-            "xAxis": {"type": "category", "data": [x["period"] for x in q_fin], "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-            "yAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-            "series": [
-                {"name": f"売上高({unit_lbl})", "type": "bar", "data": [round(x["revenue"]/scale_div, 2) for x in q_fin], "itemStyle": {"color": "#38bdf8"}},
-                {"name": f"純利益({unit_lbl})", "type": "bar", "data": [round(x["net_income"]/scale_div, 2) for x in q_fin], "itemStyle": {"color": "#10b981"}}
-            ]
+            "radar": {
+                "radius": "62%",
+                "indicator": [
+                    {"name": "割安性", "max": 100}, {"name": "成長性", "max": 100},
+                    {"name": "収益性", "max": 100}, {"name": "需給軽さ", "max": 100}, {"name": "安全性", "max": 100}
+                ],
+                "axisName": {"color": "#cbd5e1", "fontSize": 10.5}
+            },
+            "series": [{"type": "radar", "data": [{"value": scores_5, "name": "総合体力", "itemStyle": {"color": "#38bdf8"}, "areaStyle": {"color": "rgba(56,189,248,0.28)"}}]}]
         }
-        render_echarts(opt_fin, height=230)
+        render_echarts(opt_radar, height=230)
 
-    opt_d = data["opt_data"]
-    if opt_d:
-        st.markdown(f'<div class="quant-box"><b>オプション市場（満期: {html.escape(opt_d["exp"])}）</b><br>PCR: <b>{opt_d["pcr"]}</b> ｜ Call IV: <b>{opt_d["call_iv"]}%</b> ｜ Put IV: <b>{opt_d["put_iv"]}%</b></div>', unsafe_allow_html=True)
+        # 仮想板（抵抗・支持マップ）＋ 横棒Volume Profile
+        st.markdown(f"""
+        <div class="dark-box">
+          <b>VIRTUAL ORDERBOOK // 仮想板・抵抗＆支持マップ（1年実測）</b><br>
+          ・<span style="color:#fca5a5;">大口売り壁（抵抗帯）:</span> <b>{fmt_currency(vp['res_px'], is_jp_flag)}</b><br>
+          ・<span style="color:#38bdf8;">最大出来高帯 (POC):</span> <b>{fmt_currency(vp['poc_px'], is_jp_flag)}</b><br>
+          ・<span style="color:#6ee7b7;">大口買い支え（支持帯）:</span> <b>{fmt_currency(vp['sup_px'], is_jp_flag)}</b>
+        </div>
+        """, unsafe_allow_html=True)
 
-    if data["inst_holders"]:
-        rows_h = "".join([f"<tr><td>{html.escape(x['holder'])}</td><td>{x['pct']:.2f}%</td><td>{x['shares']:,}</td></tr>" for x in data["inst_holders"]])
-        st.markdown(f'<div class="dark-box"><b>主要機関投資家トップ5</b><table class="data-table"><thead><tr><th>機関名</th><th>保有比率</th><th>株数</th></tr></thead><tbody>{rows_h}</tbody></table></div>', unsafe_allow_html=True)
+        if vp["labels"]:
+            opt_vp = {
+                "backgroundColor": "#0b1120",
+                "tooltip": {"trigger": "axis"},
+                "grid": {"top": 12, "bottom": 20, "left": 6, "right": 14, "containLabel": True},
+                "xAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+                "yAxis": {"type": "category", "data": vp["labels"], "axisLabel": {"color": "#cbd5e1", "fontSize": 9.5}},
+                "series": [{"name": "出来高(M)", "type": "bar", "data": vp["vols"], "itemStyle": {"color": "#a855f7"}}]
+            }
+            render_echarts(opt_vp, height=250)
 
-# -------------------------------------------------------------------------
-# TAB 4: リスク監査・ニュース感情 ＆ 1分インベストメントメモ
-# -------------------------------------------------------------------------
-with tab4:
-    memo_key = f"memo_v3_{fc}"
-    if st.button("機関投資家向け「1分インベストメントメモ」を生成", use_container_width=True, type="primary"):
-        with st.spinner("全データ（財務・マクロβ・1日軌道・ニュース）を統合してメモを作成中..."):
-            m_txt, m_src = generate_investment_memo(corp_name, fc, curr_px, is_jp, info, traj, macro_sens, news_res, gov_risks, ovh_data)
-            st.session_state[memo_key] = (m_txt, m_src)
+        q_fin = data["q_fin"]
+        if q_fin:
+            scale_div = 1e8 if is_jp_flag else 1e9
+            unit_lbl = "億円" if is_jp_flag else "B$"
+            opt_fin = {
+                "backgroundColor": "#0b1120",
+                "tooltip": {"trigger": "axis"},
+                "legend": {"data": [f"売上({unit_lbl})", f"純利益({unit_lbl})"], "textStyle": {"color": "#cbd5e1", "fontSize": 10}, "top": 2},
+                "grid": {"top": 30, "bottom": 20, "left": 6, "right": 10, "containLabel": True},
+                "xAxis": {"type": "category", "data": [x["period"] for x in q_fin], "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+                "yAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 9.5}},
+                "series": [
+                    {"name": f"売上({unit_lbl})", "type": "bar", "data": [round(x["revenue"]/scale_div, 2) for x in q_fin], "itemStyle": {"color": "#38bdf8"}},
+                    {"name": f"純利益({unit_lbl})", "type": "bar", "data": [round(x["net_income"]/scale_div, 2) for x in q_fin], "itemStyle": {"color": "#10b981"}}
+                ]
+            }
+            render_echarts(opt_fin, height=210)
 
-    if memo_key in st.session_state:
-        m_txt, m_src = st.session_state[memo_key]
-        st.markdown(f'<div class="memo-box"><div style="font-size:11px;color:#c084fc;font-weight:800;margin-bottom:6px;">{html.escape(m_src)}</div>{html.escape(m_txt).replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
+    # ---------------------------------------------------------------------
+    # TAB 4: センチメント・スピードメーター ＋ ガバナンス ＋ AIメモ
+    # ---------------------------------------------------------------------
+    with tab4:
+        memo_key = f"memo_v4_{fc_code}"
+        if st.button("機関投資家向け「1分インベストメントメモ」を生成", use_container_width=True, type="primary"):
+            with st.spinner("全データを統合してメモを作成中..."):
+                m_txt, m_src = generate_investment_memo(corp_name, fc_code, curr_px, is_jp_flag, info, traj, macro_sens, news_res, gov_risks, vp)
+                st.session_state[memo_key] = (m_txt, m_src)
 
-    if gov_risks:
-        risk_html = "<br>".join([f"・{html.escape(x)}" for x in gov_risks])
-        st.markdown(f'<div class="warning-box"><b>ガバナンス・不祥事・訴訟関連ヒット ({len(gov_risks)}件)</b><br>{risk_html}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="quant-box"><b>ガバナンス・不祥事監査: クリーン</b><br>直近ニュースにおいて不祥事・不正・訴訟などの特異リスクシグナルは検知されていません。</div>', unsafe_allow_html=True)
+        if memo_key in st.session_state:
+            m_txt, m_src = st.session_state[memo_key]
+            st.markdown(f'<div class="memo-box"><div style="font-size:10.5px;color:#c084fc;font-weight:800;margin-bottom:5px;">{html.escape(m_src)}</div>{html.escape(m_txt).replace(chr(10), "<br>")}</div>', unsafe_allow_html=True)
 
-    pos_c, neu_c, neg_c = news_res["counts"]
-    opt_sent = {
-        "backgroundColor": "#0b1120",
-        "tooltip": {"trigger": "axis"},
-        "grid": {"top": 20, "bottom": 24, "left": 45, "right": 16},
-        "xAxis": {"type": "category", "data": ["ポジティブ", "ニュートラル", "ネガティブ"], "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-        "yAxis": {"type": "value", "splitLine": {"lineStyle": {"color": "rgba(255,255,255,0.06)"}}, "axisLabel": {"color": "#94a3b8", "fontSize": 10}},
-        "series": [{"type": "bar", "data": [
-            {"value": pos_c, "itemStyle": {"color": "#10b981"}},
-            {"value": neu_c, "itemStyle": {"color": "#38bdf8"}},
-            {"value": neg_c, "itemStyle": {"color": "#ef4444"}}
-        ]}]
-    }
-    render_echarts(opt_sent, height=190)
+        # センチメント・スピードメーター（ゲージチャート）
+        opt_gauge = {
+            "backgroundColor": "#0b1120",
+            "series": [{
+                "type": "gauge", "startAngle": 180, "endAngle": 0, "min": 0, "max": 100,
+                "center": ["50%", "76%"], "radius": "115%",
+                "axisLine": {"lineStyle": {"width": 14, "color": [[0.35, "#ef4444"], [0.65, "#38bdf8"], [1, "#10b981"]]}},
+                "pointer": {"length": "55%", "width": 5, "itemStyle": {"color": "#ffffff"}},
+                "axisTick": {"show": False}, "splitLine": {"show": False},
+                "axisLabel": {"show": False},
+                "title": {"offsetCenter": [0, "-15%"], "fontSize": 11, "color": "#94a3b8"},
+                "detail": {"fontSize": 22, "offsetCenter": [0, "12%"], "valueAnimation": True, "color": "#ffffff", "formatter": "{value}"},
+                "data": [{"value": news_res["gauge_val"], "name": "NEWS SENTIMENT"}]
+            }]
+        }
+        render_echarts(opt_gauge, height=185)
 
-    if news_res["items"]:
-        n_html = ""
-        for it in news_res["items"]:
-            badge_c = "#10b981" if it["sent"] == "POS" else ("#ef4444" if it["sent"] == "NEG" else "#94a3b8")
-            n_html += f'<div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.12);"><span style="color:{badge_c};font-weight:800;font-size:10.5px;">[{it["sent"]}]</span> <a href="{html.escape(it["link"])}" target="_blank" style="color:#e2e8f0;text-decoration:none;font-weight:600;">{html.escape(it["title"])}</a> <span style="color:#64748b;font-size:10.5px;">({html.escape(it["pub"])})</span></div>'
-        st.markdown(f'<div class="dark-box"><b>最新ニュースヘッドライン ＆ 感情判定</b><br><br>{n_html}</div>', unsafe_allow_html=True)
+        if gov_risks:
+            risk_html = "<br>".join([f"・{html.escape(x)}" for x in gov_risks])
+            st.markdown(f'<div class="warning-box"><b>ガバナンス・不祥事・訴訟関連ヒット ({len(gov_risks)}件)</b><br>{risk_html}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="quant-box"><b>ガバナンス・不祥事監査: クリーン</b><br>直近ニュースにおいて不祥事・不正・訴訟などの特異リスクシグナルは検知されていません。</div>', unsafe_allow_html=True)
+
+        if news_res["items"]:
+            n_html = ""
+            for it in news_res["items"]:
+                badge_c = "#10b981" if it["sent"] == "POS" else ("#ef4444" if it["sent"] == "NEG" else "#94a3b8")
+                n_html += f'<div style="margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.12);"><span style="color:{badge_c};font-weight:800;font-size:10px;">[{it["sent"]}]</span> <a href="{html.escape(it["link"])}" target="_blank" style="color:#e2e8f0;text-decoration:none;font-weight:600;">{html.escape(it["title"])}</a> <span style="color:#64748b;font-size:10px;">({html.escape(it["pub"])})</span></div>'
+            st.markdown(f'<div class="dark-box"><b>最新ニュースヘッドライン ＆ 感情判定</b><br><br>{n_html}</div>', unsafe_allow_html=True)
+
+# Streamlitのバージョンに応じて自動ライブ更新（@st.fragment）を有効化
+if hasattr(st, "fragment"):
+    @st.fragment(run_every="30s")
+    def _auto_live_runner():
+        render_live_terminal(fc, in_style, is_jp)
+    _auto_live_runner()
+else:
+    render_live_terminal(fc, in_style, is_jp)
